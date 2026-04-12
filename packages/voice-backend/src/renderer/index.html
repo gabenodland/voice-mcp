@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Voice</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header id="header">
+      <div class="header-left">
+        <h1>Claude Voice</h1>
+        <span id="status-badge" class="badge">Idle</span>
+        <span id="queue-badge" class="badge badge-dim">Queue: 0</span>
+      </div>
+      <div class="header-right">
+        <button id="btn-mute" class="btn" title="Mute/Unmute">🔊</button>
+      </div>
+    </header>
+
+    <!-- Current Message -->
+    <section id="now-playing" class="panel">
+      <div id="now-agent" class="now-agent">—</div>
+      <div id="now-text" class="now-text">No message playing</div>
+      <div id="controls">
+        <button id="btn-pause" class="btn ctrl-btn" title="Pause">⏸</button>
+        <button id="btn-resume" class="btn ctrl-btn" title="Resume" style="display:none">▶</button>
+        <button id="btn-replay" class="btn ctrl-btn" title="Replay last">🔁</button>
+      </div>
+    </section>
+
+    <!-- Tabs -->
+    <nav id="tabs">
+      <button class="tab active" data-tab="history">History</button>
+      <button class="tab" data-tab="agents">Agents</button>
+    </nav>
+
+    <!-- History Panel -->
+    <section id="history-panel" class="panel tab-panel active">
+      <div id="history-list" class="scroll-list"></div>
+      <div id="history-empty" class="empty-state">No voice history yet</div>
+    </section>
+
+    <!-- Agents Panel -->
+    <section id="agents-panel" class="panel tab-panel">
+      <div id="agents-list" class="scroll-list"></div>
+      <div id="agents-empty" class="empty-state">No agents registered yet</div>
+      <div class="agents-actions">
+        <button id="btn-purge" class="btn btn-small">Purge stale agents</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

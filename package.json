@@ -1,0 +1,19 @@
+{
+  "name": "voice-mcp-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/shared",
+    "packages/mcp-server",
+    "packages/voice-backend"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "build:shared": "npm run build -w packages/shared",
+    "build:mcp": "npm run build -w packages/mcp-server",
+    "build:backend": "npm run build -w packages/voice-backend",
+    "dev:backend": "npm run dev -w packages/voice-backend"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0"
+  }
+}

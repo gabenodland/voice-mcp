@@ -1,0 +1,339 @@
+/* Catppuccin Mocha Theme */
+:root {
+  --base: #1e1e2e;
+  --mantle: #181825;
+  --crust: #11111b;
+  --surface0: #313244;
+  --surface1: #45475a;
+  --surface2: #585b70;
+  --overlay0: #6c7086;
+  --overlay1: #7f849c;
+  --text: #cdd6f4;
+  --subtext0: #a6adc8;
+  --subtext1: #bac2de;
+  --blue: #89b4fa;
+  --green: #a6e3a1;
+  --yellow: #f9e2af;
+  --red: #f38ba8;
+  --mauve: #cba6f7;
+  --pink: #f5c2e7;
+  --teal: #94e2d5;
+  --peach: #fab387;
+  --lavender: #b4befe;
+  --sapphire: #74c7ec;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--base);
+  color: var(--text);
+  font-family: "Segoe UI", "SF Pro Text", "DejaVu Sans", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+  height: 100vh;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 12px;
+  gap: 10px;
+}
+
+/* Header */
+#header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--surface0);
+  border-radius: 8px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-left h1 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--blue);
+}
+
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--green);
+  color: var(--crust);
+  font-weight: 600;
+}
+
+.badge-dim {
+  background: var(--surface1);
+  color: var(--subtext0);
+}
+
+.badge-playing {
+  background: var(--green);
+  color: var(--crust);
+}
+
+.badge-paused {
+  background: var(--yellow);
+  color: var(--crust);
+}
+
+.badge-muted {
+  background: var(--red);
+  color: var(--crust);
+}
+
+/* Buttons */
+.btn {
+  background: var(--surface1);
+  border: none;
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+
+.btn:hover {
+  background: var(--surface2);
+}
+
+.btn-small {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+.ctrl-btn {
+  font-size: 18px;
+  padding: 6px 14px;
+}
+
+/* Now Playing */
+#now-playing {
+  background: var(--surface0);
+  border-radius: 8px;
+  padding: 14px;
+  min-height: 80px;
+}
+
+.now-agent {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.now-text {
+  font-size: 14px;
+  color: var(--subtext1);
+  margin-bottom: 10px;
+  max-height: 60px;
+  overflow-y: auto;
+}
+
+#controls {
+  display: flex;
+  gap: 8px;
+}
+
+/* Tabs */
+#tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.tab {
+  background: var(--surface0);
+  border: none;
+  color: var(--subtext0);
+  padding: 8px 20px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.15s;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  background: var(--surface1);
+  color: var(--blue);
+}
+
+/* Tab Panels */
+.tab-panel {
+  display: none;
+  flex: 1;
+  overflow: hidden;
+  background: var(--surface0);
+  border-radius: 0 8px 8px 8px;
+  padding: 10px;
+}
+
+.tab-panel.active {
+  display: flex;
+  flex-direction: column;
+}
+
+.scroll-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.empty-state {
+  color: var(--overlay0);
+  text-align: center;
+  padding: 30px;
+  font-style: italic;
+}
+
+/* History Items */
+.history-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--mantle);
+  align-items: flex-start;
+}
+
+.history-item:hover {
+  background: var(--surface1);
+}
+
+.history-time {
+  font-size: 11px;
+  color: var(--overlay0);
+  white-space: nowrap;
+  min-width: 50px;
+}
+
+.history-agent {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.history-text {
+  font-size: 13px;
+  color: var(--subtext1);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-status {
+  font-size: 11px;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* Agent dot */
+.agent-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* Agents Panel */
+.agent-row {
+  display: grid;
+  grid-template-columns: 1fr 160px 100px 100px;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--mantle);
+  align-items: center;
+}
+
+.agent-row:hover {
+  background: var(--surface1);
+}
+
+.agent-name {
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agent-voice,
+.agent-rate,
+.agent-pitch {
+  font-size: 12px;
+  color: var(--subtext0);
+}
+
+.agent-select {
+  background: var(--surface1);
+  border: 1px solid var(--surface2);
+  color: var(--text);
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  width: 100%;
+}
+
+.agents-actions {
+  padding-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--overlay0);
+}
+
+/* Muted state */
+body.muted #now-playing {
+  border-left: 3px solid var(--red);
+}
+
+body.muted #btn-mute {
+  background: #4a2020;
+  color: var(--red);
+}
