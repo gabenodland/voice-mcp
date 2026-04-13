@@ -15,6 +15,12 @@ Works with any MCP-compatible tool: Claude Code, VS Code, Cursor, Windsurf, and 
 
 ## Quick Start
 
+### Install
+
+```bash
+npm install -g voice-tts-mcp
+```
+
 ### VS Code / Cursor / Windsurf
 
 Add to your project's `.vscode/mcp.json`:
@@ -24,8 +30,7 @@ Add to your project's `.vscode/mcp.json`:
   "servers": {
     "voice-tts-mcp": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "voice-tts-mcp"]
+      "command": "voice-tts-mcp"
     }
   }
 }
@@ -34,7 +39,7 @@ Add to your project's `.vscode/mcp.json`:
 ### Claude Code
 
 ```bash
-claude mcp add voice-tts-mcp -s user -- npx -y voice-tts-mcp
+claude mcp add voice-tts-mcp -s user -- voice-tts-mcp
 ```
 
 ### Any MCP client
@@ -42,10 +47,10 @@ claude mcp add voice-tts-mcp -s user -- npx -y voice-tts-mcp
 The server runs over stdio. Point your MCP client at:
 
 ```
-npx -y voice-tts-mcp
+voice-tts-mcp
 ```
 
-That's it. Restart your editor and ask the AI to "say hello using voice_speak".
+Restart your editor and ask the AI to "say hello using voice_speak".
 
 ### Build from source
 
