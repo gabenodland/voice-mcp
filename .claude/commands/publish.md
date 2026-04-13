@@ -25,9 +25,11 @@ Bump version, build, publish, commit, and push. Run this when changes are ready 
 ### Phase 3: Build and publish
 
 1. Run `npm run build` (rebuild with new version)
-2. Run `cd packages/mcp-server && npm publish --access public`
-   - If this fails due to 2FA: tell the user to run the publish command manually from their terminal
-   - If it fails for other reasons: STOP and report
+2. Ask the user for a fresh npm automation token from: https://www.npmjs.com/settings/gnod/tokens/
+   - They should create a new Classic Automation token each time (or reuse an existing one)
+   - Set it: `npm config set //registry.npmjs.org/:_authToken=TOKEN`
+3. Run `cd packages/mcp-server && npm publish --access public --no-workspaces`
+   - If it fails: STOP and report
 3. Use `voice_speak` MCP tool to announce: "Published version X.Y.Z to npm"
 
 ### Phase 4: Commit and push
