@@ -19,7 +19,6 @@ Works with any MCP-compatible tool: Claude Code, VS Code, Cursor, Windsurf, and 
 
 Add to your project's `.vscode/mcp.json`:
 
-**macOS / Linux:**
 ```json
 {
   "servers": {
@@ -32,52 +31,36 @@ Add to your project's `.vscode/mcp.json`:
 }
 ```
 
-**Windows:**
+### Claude Desktop
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "voice-tts-mcp": {
-      "type": "stdio",
-      "command": "cmd",
-      "args": ["/c", "npx", "-y", "voice-tts-mcp"]
+      "command": "npx",
+      "args": ["-y", "voice-tts-mcp"]
     }
   }
 }
 ```
 
-> **Why `cmd /c` on Windows?** Node.js `child_process.spawn()` can't run `npx` directly on Windows because it's a `.cmd` script. Wrapping with `cmd /c` fixes this. This affects all MCP servers, not just this one.
-
 ### Claude Code
 
-**macOS / Linux:**
 ```bash
 claude mcp add voice-tts-mcp -s user -- npx -y voice-tts-mcp
 ```
 
-**Windows:**
-```bash
-claude mcp add voice-tts-mcp -s user -- cmd /c npx -y voice-tts-mcp
-```
+### Troubleshooting (Windows)
 
-### Alternative: Global install (any platform)
-
-If you prefer a global install that works identically everywhere:
+If `npx` fails with "not recognized" errors, install globally instead:
 
 ```bash
 npm install -g voice-tts-mcp
 ```
 
-Then configure your MCP client with:
-```json
-{
-  "command": "voice-tts-mcp"
-}
-```
-
-Or for Claude Code:
-```bash
-claude mcp add voice-tts-mcp -s user -- voice-tts-mcp
-```
+Then use `voice-tts-mcp` as the command instead of `npx`.
 
 ## Available Tools
 
