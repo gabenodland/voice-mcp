@@ -21,7 +21,9 @@ function loadAssignments(): AssignmentsMap {
 
 function saveAssignments(assignments: AssignmentsMap): void {
   ensureDataDir();
-  fs.writeFileSync(ASSIGNMENTS_FILE, JSON.stringify(assignments, null, 2));
+  const tmp = ASSIGNMENTS_FILE + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(assignments, null, 2));
+  fs.renameSync(tmp, ASSIGNMENTS_FILE);
 }
 
 function pickRandomVoice(assignments: AssignmentsMap): { name: string; label: string } {
@@ -99,11 +101,10 @@ export function registerVoice(
   const picked = voiceName
     ? VOICE_POOL.find((v) => v.name === voiceName) ?? pickRandomVoice(assignments)
     : pickRandomVoice(assignments);
-  const voiceData = "name" in picked ? picked : { name: (picked as any).name, label: (picked as any).label };
 
   const assignment: VoiceAssignment = {
-    voice: typeof voiceData.name === "string" ? voiceData.name : picked.name,
-    label: typeof voiceData.label === "string" ? voiceData.label : picked.label,
+    voice: picked.name,
+    label: picked.label,
     last_used: new Date().toISOString(),
     rate: rate ?? DEFAULT_RATE,
     pitch: normalizePitch(pitch ?? DEFAULT_PITCH),
@@ -127,14 +128,28 @@ export function setAgentParam(
 
 export function getAllAgents(): AgentInfo[] {
   const assignments = loadAssignments();
-  return Object.entries(assignments).map(([name, a]) => ({
-    agent_name: name,
-    voice: a.voice,
-    label: a.label,
-    last_used: a.last_used,
-    rate: a.rate,
-    pitch: a.pitch,
-  }));
+  return Object.entries(assignments)
+    .map(([name, a]) => ({
+      agent_name: name,
+      voice: a.voice,
+      label: a.label,
+      last_used: a.last_used,
+      rate: a.rate,
+      pitch: a.pitch,
+    }))
+    .sort((a, b) => new Date(b.last_used).getTime() - new Date(a.last_used).getTime());
+}
+
+export function countStale(): number {
+  const assignments = loadAssignments();
+  const cutoff = Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000;
+  let count = 0;
+  for (const a of Object.values(assignments)) {
+    if (!a.last_used || new Date(a.last_used).getTime() < cutoff) {
+      count++;
+    }
+  }
+  return count;
 }
 
 export function purgeStale(): number {
@@ -142,7 +157,7 @@ export function purgeStale(): number {
   const cutoff = Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000;
   let count = 0;
   for (const [name, a] of Object.entries(assignments)) {
-    if (new Date(a.last_used).getTime() < cutoff) {
+    if (!a.last_used || new Date(a.last_used).getTime() < cutoff) {
       delete assignments[name];
       count++;
     }

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "mcp__voice-mcp__voice_speak",
+      "mcp__voice-mcp__voice_test",
+      "mcp__voice-mcp__voice_log",
+      "mcp__voice-mcp__voice_agents",
+      "mcp__voice-mcp__voice_register",
+      "mcp__voice-mcp__voice_ui",
+      "mcp__voice-mcp__voice_setup"
+    ]
+  }
+}

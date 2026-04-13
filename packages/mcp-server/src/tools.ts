@@ -3,11 +3,20 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { sendCommand } from "../../shared/src/tcp-client.js";
 import { registry } from "../../shared/src/index.js";
 import { VOICE_POOL, SPEED_PRESETS, TONE_PRESETS } from "../../shared/src/voice-pool.js";
-import { LOG_FILE, DATA_DIR } from "../../shared/src/constants.js";
+import { LOG_FILE, DATA_DIR, DEFAULT_RATE, WEB_UI_PORT } from "../../shared/src/constants.js";
+import { exec } from "node:child_process";
 import { appendLog } from "./logger.js";
 import { ensureBackend } from "./launcher.js";
 import type { TcpResponse, AgentsResponse, StatusResponse } from "../../shared/src/types.js";
 import fs from "node:fs";
+
+function validateRate(rate: string): string {
+  const match = rate.match(/^([+-]?\d{1,3})%$/);
+  if (!match) return DEFAULT_RATE;
+  const val = parseInt(match[1], 10);
+  if (val < -50 || val > 200) return DEFAULT_RATE;
+  return rate;
+}
 
 function errorText(msg: string) {
   return { content: [{ type: "text" as const, text: msg }], isError: true };
@@ -33,24 +42,29 @@ export function registerTools(server: McpServer) {
   // ── voice_speak ──────────────────────────────────────────────────────
   server.tool(
     "voice_speak",
-    "Speak text aloud using text-to-speech. Each agent gets a unique persistent voice.",
+    "Speak text aloud using text-to-speech. Each agent gets a unique persistent voice. IMPORTANT: Never use ALL CAPS for emphasis — Edge TTS will spell out capitalized words letter by letter (e.g. 'NO' becomes 'N. O.'). Use normal casing only.",
     {
-      text: z.string().describe("The text to speak aloud"),
+      text: z.string().describe("The text to speak aloud. Use normal casing — never ALL CAPS (Edge TTS spells them out letter by letter)"),
       agent_name: z.string().optional().describe("Agent name for voice assignment (defaults to 'default')"),
       voice: z.string().optional().describe("Override voice (e.g., 'en-US-AriaNeural')"),
       rate: z.string().optional().describe("Speech rate (e.g., '+25%', 'fast', 'slow')"),
       pitch: z.string().optional().describe("Voice pitch (e.g., '+10Hz', 'high', 'low')"),
+      volume: z.string().optional().describe("Volume adjustment (e.g., '+50%', '-50%'). Range: -50% to +50%"),
     },
-    async ({ text, agent_name, voice, rate, pitch }) => {
+    async ({ text, agent_name, voice, rate, pitch, volume }) => {
       const agent = agent_name ?? "default";
+      const validatedRate = rate ? validateRate(rate) : undefined;
 
       const response = await sendOrLaunch({
         cmd: "speak",
         text,
         agent,
         voice,
-        rate,
+        rate: validatedRate,
         pitch,
+        volume,
+        _rate_explicit: rate !== undefined,
+        _pitch_explicit: pitch !== undefined,
       });
 
       if (!response) {
@@ -65,7 +79,7 @@ export function registerTools(server: McpServer) {
       }
 
       const result = `[${agent}] ${(response as any).label ?? ""}: ${text}`;
-      appendLog("voice_speak", agent, text, rate, result);
+      appendLog("voice_speak", agent, text, validatedRate, result);
       return okText(result);
     },
   );
@@ -78,7 +92,7 @@ export function registerTools(server: McpServer) {
       lines: z.number().optional().describe("Number of recent log lines to return (default 20)"),
     },
     async ({ lines }) => {
-      const count = lines ?? 20;
+      const count = Math.max(1, Math.min(lines ?? 20, 100));
       try {
         const data = fs.readFileSync(LOG_FILE, "utf-8");
         const allLines = data.trim().split("\n").filter(Boolean);
@@ -88,7 +102,9 @@ export function registerTools(server: McpServer) {
         const formatted = recent.map((line) => {
           try {
             const entry = JSON.parse(line);
-            return `[${entry.ts}] ${entry.tool} | ${entry.agent_name} | ${entry.text}`;
+            const ts = entry.ts?.replace("T", " ").replace(/\.\d+Z$/, "") ?? "";
+            const text = entry.text?.length > 60 ? entry.text.slice(0, 60) + "..." : entry.text;
+            return `[${ts}] ${entry.agent_name} | ${text}`;
           } catch {
             return line;
           }
@@ -175,25 +191,89 @@ Add to your Claude Code settings:
 }
 \`\`\`
 
-## CLAUDE.md Voice Instructions
-Add to your project CLAUDE.md:
+## CLAUDE.md Voice Rule
+Paste this into your CLAUDE.md rules section:
 \`\`\`
-## Voice
-You have voice capabilities via the voice MCP tools.
-- Use voice_speak to read important output aloud
-- Use voice_register at the start to set your agent name
-- Each agent gets a unique persistent voice
-- Use voice_agents to see all registered agents
+**ALWAYS USE VOICE** — MANDATORY: call the \`voice_speak\` MCP tool with every completion or question.
+- \`agent_name\`: pick a name for yourself (e.g. "joe", "main", "narrator") and reuse it every call.
+  Changing the name changes your voice. Subagents should each pick a distinct name (e.g. "explorer", "tester").
+- CRITICAL: Use the SAME agent_name every call so your voice stays consistent.
+- NEVER use ALL CAPS in voice text — Edge TTS spells them out letter by letter (e.g. "NO" → "N. O."). Use normal casing.
+- Messages queue up and play one after the next automatically.
 \`\`\`
 
 ## Available Tools
 - **voice_speak** — Speak text aloud (each agent gets a unique voice)
+- **voice_test** — Preview an agent's voice with a test phrase
+- **voice_ui** — Open the voice control panel window
 - **voice_log** — View recent voice activity
 - **voice_register** — Register/update agent voice settings
 - **voice_agents** — List all agents and their voices
 - **voice_setup** — This help text
 `
       );
+    },
+  );
+
+  // ── voice_test ───────────────────────────────────────────────────────
+  server.tool(
+    "voice_test",
+    "Preview an agent's voice. Plays a test phrase so you can hear how the agent sounds with current settings.",
+    {
+      agent_name: z.string().describe("Agent name to test (must be already registered)"),
+    },
+    async ({ agent_name }) => {
+      const response = await sendOrLaunch({
+        cmd: "test_voice",
+        agent_name,
+      });
+
+      if (!response) {
+        return errorText(
+          "Voice backend is not running. Start it with: npx voice-mcp-backend\n" +
+          "Or it will auto-start on the next attempt."
+        );
+      }
+
+      if (!response.ok) {
+        return errorText(`Voice error: ${(response as any).error}`);
+      }
+
+      return okText((response as any).message ?? `Testing voice for agent "${agent_name}"`);
+    },
+  );
+
+  // ── voice_ui ─────────────────────────────────────────────────────────
+  server.tool(
+    "voice_ui",
+    "Open the voice control panel in a browser window. Shows playback history, agent settings, and controls.",
+    {},
+    async () => {
+      // Make sure backend is running first
+      await sendOrLaunch({ cmd: "status" });
+
+      const url = `http://localhost:${WEB_UI_PORT}`;
+      try {
+        if (process.platform === "win32") {
+          exec(`start "" msedge --app="${url}" --window-size=650,700`, (err) => {
+            if (err) {
+              exec(`start "" chrome --app="${url}" --window-size=650,700`, (err2) => {
+                if (err2) exec(`start "" "${url}"`);
+              });
+            }
+          });
+        } else if (process.platform === "darwin") {
+          exec(`open -a "Google Chrome" --args --app="${url}" --window-size=650,700`, (err) => {
+            if (err) exec(`open "${url}"`);
+          });
+        } else {
+          exec(`google-chrome --app="${url}" --window-size=650,700 2>/dev/null || xdg-open "${url}"`);
+        }
+      } catch {
+        return errorText(`Could not open browser. Visit ${url} manually.`);
+      }
+
+      return okText(`Voice control panel opened at ${url}`);
     },
   );
 }

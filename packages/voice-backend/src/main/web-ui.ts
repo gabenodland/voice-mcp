@@ -3,12 +3,44 @@ import { createServer } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { exec } from "node:child_process";
 import { playbackQueue } from "./playback-queue.js";
-import { getPlayerState } from "./audio-player.js";
+import { getPlayerState, playAudio, setCurrentMeta, clearCurrentMeta } from "./audio-player.js";
+import { synthesize } from "./tts-engine.js";
 import { registry, VOICE_POOL, SPEED_PRESETS, TONE_PRESETS } from "@voice-mcp/shared";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const connectedClients = new Set<WebSocket>();
+let browserOpened = false;
+
+export function openBrowserOnce(port: number): void {
+  if (browserOpened) return;
+  browserOpened = true;
+  const url = `http://localhost:${port}`;
+  try {
+    if (process.platform === "win32") {
+      // Try Edge/Chrome --app mode for a clean standalone window (no tabs/address bar)
+      exec(`start "" msedge --app="${url}" --window-size=650,700`, (err) => {
+        if (err) {
+          exec(`start "" chrome --app="${url}" --window-size=650,700`, (err2) => {
+            if (err2) {
+              // Fall back to default browser
+              exec(`start "" "${url}"`);
+            }
+          });
+        }
+      });
+    } else if (process.platform === "darwin") {
+      exec(`open -a "Google Chrome" --args --app="${url}" --window-size=650,700`, (err) => {
+        if (err) exec(`open "${url}"`);
+      });
+    } else {
+      exec(`google-chrome --app="${url}" --window-size=650,700 2>/dev/null || xdg-open "${url}"`);
+    }
+  } catch {
+    // Best-effort
+  }
+}
 
 export function startWebUI(port: number) {
   const app = express();
@@ -58,12 +90,21 @@ export function startWebUI(port: number) {
   });
 
   httpServer.listen(port, "127.0.0.1");
+
+  // Periodic state broadcast — keeps UI in sync with playback state
+  // like the Python version's 250ms _poll_state() loop
+  setInterval(() => {
+    if (connectedClients.size > 0) {
+      broadcastState();
+    }
+  }, 250);
 }
 
 function getFullState() {
   const playerState = getPlayerState();
   const queueState = playbackQueue.getState();
   const agents = registry.getAllAgents();
+  const staleCount = registry.countStale();
 
   return {
     player: playerState,
@@ -71,15 +112,17 @@ function getFullState() {
       items: queueState.items,
       playQueue: queueState.playQueue,
       history: queueState.history,
+      timeline: queueState.timeline,
       muted: queueState.muted,
       paused: queueState.paused,
       queueSize: queueState.queueSize,
     },
     agents,
+    staleCount,
   };
 }
 
-function handleWsMessage(msg: { action: string; [key: string]: any }) {
+async function handleWsMessage(msg: { action: string; [key: string]: any }) {
   switch (msg.action) {
     case "pause":
       playbackQueue.pause();
@@ -108,6 +151,28 @@ function handleWsMessage(msg: { action: string; [key: string]: any }) {
       break;
     case "purge_stale":
       registry.purgeStale();
+      break;
+    case "test_voice":
+      if (msg.agent_name) {
+        const agent = registry.getAllAgents().find((a: any) => a.agent_name === msg.agent_name);
+        if (agent) {
+          const testText = `I am ${msg.agent_name} using the voice ${agent.label}. This is how I sound with the current settings.`;
+          try {
+            const audioPath = await synthesize(testText, agent.voice, agent.rate, agent.pitch, "+0%");
+            setCurrentMeta(msg.agent_name, testText);
+            broadcastState();
+            await playAudio(audioPath);
+            clearCurrentMeta();
+          } catch (err) {
+            console.error("voice-mcp-backend: Test voice error:", err);
+          }
+        }
+      }
+      break;
+    case "replay_item":
+      if (msg.item_id) {
+        playbackQueue.replayItem(msg.item_id);
+      }
       break;
   }
   broadcastState();

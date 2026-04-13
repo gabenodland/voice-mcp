@@ -3,3 +3,8 @@ dist/
 *.tsbuildinfo
 .env
 *.mp3
+
+# IDE / local config
+.vscode/
+.serena/
+.claude/settings.local.json

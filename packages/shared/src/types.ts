@@ -54,6 +54,16 @@ export interface UnmuteCommand {
   cmd: "unmute";
 }
 
+export interface TestVoiceCommand {
+  cmd: "test_voice";
+  agent_name: string;
+}
+
+export interface ReplayItemCommand {
+  cmd: "replay_item";
+  item_id: string;
+}
+
 export type TcpCommand =
   | SpeakCommand
   | StatusCommand
@@ -64,7 +74,9 @@ export type TcpCommand =
   | ResumeCommand
   | ReplayCommand
   | MuteCommand
-  | UnmuteCommand;
+  | UnmuteCommand
+  | TestVoiceCommand
+  | ReplayItemCommand;
 
 // TCP response types (Voice backend → MCP server)
 export interface OkResponse {

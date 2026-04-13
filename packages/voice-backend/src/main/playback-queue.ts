@@ -26,6 +26,11 @@ class PlaybackQueue {
   private agentIndexMap = new Map<string, number>();
   private agentCounter = 0;
 
+  // TTS concurrency control — one at a time to avoid Edge TTS rate limits
+  private static readonly MAX_CONCURRENT_TTS = 1;
+  private activeTtsCount = 0;
+  private ttsQueue: PlaybackItem[] = [];
+
   enqueue(params: EnqueueParams): void {
     const agentIdx = this.getAgentIndex(params.agent);
     const item: PlaybackItem = {
@@ -46,11 +51,25 @@ class PlaybackQueue {
     this.items.push(item);
     broadcastState();
 
-    // Start TTS generation (non-blocking)
-    this.generateTTS(item);
+    // Queue TTS generation with concurrency limit
+    this.ttsQueue.push(item);
+    this.processTtsQueue();
   }
 
-  private async generateTTS(item: PlaybackItem): Promise<void> {
+  private processTtsQueue(): void {
+    while (this.activeTtsCount < PlaybackQueue.MAX_CONCURRENT_TTS && this.ttsQueue.length > 0) {
+      const item = this.ttsQueue.shift()!;
+      this.activeTtsCount++;
+      this.generateTTS(item).finally(() => {
+        this.activeTtsCount--;
+        this.processTtsQueue();
+      });
+    }
+  }
+
+  private static readonly MAX_TTS_RETRIES = 3;
+
+  private async generateTTS(item: PlaybackItem, attempt = 0): Promise<void> {
     try {
       const audioPath = await synthesize(
         item.text,
@@ -62,13 +81,17 @@ class PlaybackQueue {
       item.audioPath = audioPath;
       item.status = "ready";
 
-      // Place in reorder buffer
       this.reorderBuffer.set(item.seq, item);
       this.flushReorderBuffer();
     } catch (err) {
-      console.error(`voice-mcp-backend: TTS error for seq ${item.seq}:`, err);
+      if (attempt < PlaybackQueue.MAX_TTS_RETRIES) {
+        const delay = 1000 * Math.pow(2, attempt); // 1s, 2s, 4s
+        console.error(`voice-mcp-backend: TTS error for seq ${item.seq} (attempt ${attempt + 1}/${PlaybackQueue.MAX_TTS_RETRIES}), retrying in ${delay}ms...`);
+        await new Promise((r) => setTimeout(r, delay));
+        return this.generateTTS(item, attempt + 1);
+      }
+      console.error(`voice-mcp-backend: TTS failed for seq ${item.seq} after ${attempt + 1} attempts:`, err);
       item.status = "error";
-      // Skip this item in the sequence
       this.reorderBuffer.set(item.seq, item);
       this.flushReorderBuffer();
     }
@@ -94,40 +117,51 @@ class PlaybackQueue {
 
   private playQueue: PlaybackItem[] = [];
 
-  private async processPlayQueue(): Promise<void> {
-    if (this.isPlaying || this.playQueue.length === 0) return;
+  private processPlayQueueRunning = false;
 
+  private async processPlayQueue(): Promise<void> {
+    // Guard against concurrent entry — only one loop at a time
+    if (this.processPlayQueueRunning || this.playQueue.length === 0) return;
+    this.processPlayQueueRunning = true;
     this.isPlaying = true;
 
-    while (this.playQueue.length > 0) {
-      const item = this.playQueue.shift()!;
+    try {
+      while (this.playQueue.length > 0) {
+        const item = this.playQueue.shift()!;
 
-      if (this.muted) {
+        if (this.muted) {
+          item.status = "done";
+          this.addToHistory(item);
+          broadcastState();
+          continue;
+        }
+
+        // Wait while paused
+        while (this.isPaused) {
+          await new Promise((r) => setTimeout(r, 100));
+        }
+
+        item.status = "playing";
+        setCurrentMeta(item.agent, item.text);
+        broadcastState();
+
+        if (item.audioPath) {
+          try {
+            await playAudio(item.audioPath);
+          } catch (err) {
+            console.error(`voice-mcp-backend: Playback error:`, err);
+          }
+        }
+
         item.status = "done";
+        clearCurrentMeta();
         this.addToHistory(item);
         broadcastState();
-        continue;
       }
-
-      item.status = "playing";
-      setCurrentMeta(item.agent, item.text);
-      broadcastState();
-
-      if (item.audioPath) {
-        try {
-          await playAudio(item.audioPath);
-        } catch (err) {
-          console.error(`voice-mcp-backend: Playback error:`, err);
-        }
-      }
-
-      item.status = "done";
-      clearCurrentMeta();
-      this.addToHistory(item);
-      broadcastState();
+    } finally {
+      this.isPlaying = false;
+      this.processPlayQueueRunning = false;
     }
-
-    this.isPlaying = false;
   }
 
   private addToHistory(item: PlaybackItem): void {
@@ -151,23 +185,47 @@ class PlaybackQueue {
     resumeAudio();
   }
 
+  private replayLock = false;
+
   replay(): void {
-    if (this.history.length === 0) return;
+    if (this.muted || this.history.length === 0) return;
     const last = this.history[0];
-    if (last.audioPath) {
-      stopAudio();
-      setCurrentMeta(last.agent, last.text);
+    if (last.audioPath) this.playOneShot(last);
+  }
+
+  replayItem(itemId: string): boolean {
+    if (this.muted) return false;
+    const item = this.history.find((i) => i.id === itemId);
+    if (!item?.audioPath) return false;
+    this.playOneShot(item);
+    return true;
+  }
+
+  private async playOneShot(item: PlaybackItem): Promise<void> {
+    // Stop anything currently playing and prevent overlap
+    stopAudio();
+    if (this.replayLock) return;
+    this.replayLock = true;
+
+    try {
+      setCurrentMeta(item.agent, item.text);
       broadcastState();
-      playAudio(last.audioPath).then(() => {
-        clearCurrentMeta();
-        broadcastState();
-      });
+      await playAudio(item.audioPath!);
+    } catch (err) {
+      console.error("voice-mcp-backend: Replay error:", err);
+    } finally {
+      this.replayLock = false;
+      clearCurrentMeta();
+      broadcastState();
     }
   }
 
   setMuted(muted: boolean): void {
     this.muted = muted;
-    if (muted) stopAudio();
+    if (muted) {
+      stopAudio();
+      clearCurrentMeta();
+    }
   }
 
   isMuted(): boolean {
@@ -179,10 +237,25 @@ class PlaybackQueue {
   }
 
   getState() {
+    // Build a deduplicated timeline from all sources
+    const seen = new Set<string>();
+    const timeline: PlaybackItem[] = [];
+    const addUnique = (item: PlaybackItem) => {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        timeline.push(item);
+      }
+    };
+
+    for (const item of this.items) addUnique(item);
+    for (const item of this.playQueue) addUnique(item);
+    for (const item of this.history) addUnique(item);
+
     return {
       items: this.items,
       playQueue: this.playQueue,
       history: this.history,
+      timeline,
       muted: this.muted,
       paused: this.isPaused,
       queueSize: this.size(),

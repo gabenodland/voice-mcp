@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Claude Voice</title>
+  <link rel="icon" type="image/png" href="pacman.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,46 +13,51 @@
     <header id="header">
       <div class="header-left">
         <h1>Claude Voice</h1>
+        <span id="status-dot" class="status-dot"></span>
         <span id="status-badge" class="badge">Idle</span>
-        <span id="queue-badge" class="badge badge-dim">Queue: 0</span>
+        <span id="queue-badge" class="badge badge-dim"></span>
       </div>
       <div class="header-right">
-        <button id="btn-mute" class="btn" title="Mute/Unmute">🔊</button>
+        <button id="btn-mute" class="btn" title="Mute/Unmute (M)">🔊</button>
+        <button id="btn-agents" class="btn" title="Settings">⚙️</button>
       </div>
     </header>
 
     <!-- Current Message -->
     <section id="now-playing" class="panel">
-      <div id="now-agent" class="now-agent">—</div>
+      <div class="now-meta">
+        <span id="now-agent" class="now-agent">—</span>
+        <span id="now-time" class="now-time"></span>
+      </div>
       <div id="now-text" class="now-text">No message playing</div>
       <div id="controls">
-        <button id="btn-pause" class="btn ctrl-btn" title="Pause">⏸</button>
-        <button id="btn-resume" class="btn ctrl-btn" title="Resume" style="display:none">▶</button>
-        <button id="btn-replay" class="btn ctrl-btn" title="Replay last">🔁</button>
+        <button id="btn-play" class="btn ctrl-btn btn-play" title="Play" style="display:none">▶</button>
+        <button id="btn-pause" class="btn ctrl-btn" title="Pause (Space)" style="display:none">⏸</button>
+        <button id="btn-resume" class="btn ctrl-btn" title="Resume (Space)" style="display:none">▶</button>
+        <button id="btn-restart" class="btn ctrl-btn" title="Restart from beginning" style="display:none">⟲</button>
       </div>
     </section>
 
-    <!-- Tabs -->
-    <nav id="tabs">
-      <button class="tab active" data-tab="history">History</button>
-      <button class="tab" data-tab="agents">Agents</button>
-    </nav>
-
-    <!-- History Panel -->
-    <section id="history-panel" class="panel tab-panel active">
+    <!-- History -->
+    <section id="history-panel" class="panel history-section">
       <div id="history-list" class="scroll-list"></div>
       <div id="history-empty" class="empty-state">No voice history yet</div>
     </section>
-
-    <!-- Agents Panel -->
-    <section id="agents-panel" class="panel tab-panel">
-      <div id="agents-list" class="scroll-list"></div>
-      <div id="agents-empty" class="empty-state">No agents registered yet</div>
-      <div class="agents-actions">
-        <button id="btn-purge" class="btn btn-small">Purge stale agents</button>
-      </div>
-    </section>
   </div>
+
+  <!-- Agents Drawer (slides in from right) -->
+  <div id="agents-overlay" class="drawer-overlay"></div>
+  <aside id="agents-drawer" class="drawer">
+    <div class="drawer-header">
+      <h2>Agents</h2>
+      <button id="btn-close-drawer" class="btn btn-small">✕</button>
+    </div>
+    <div id="agents-list" class="scroll-list"></div>
+    <div id="agents-empty" class="empty-state">No agents registered yet</div>
+    <div class="agents-actions">
+      <button id="btn-purge" class="btn btn-small btn-danger" style="display:none">Purge stale agents</button>
+    </div>
+  </aside>
 
   <script src="app.js"></script>
 </body>
