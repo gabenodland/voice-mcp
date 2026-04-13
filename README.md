@@ -13,7 +13,15 @@ Give your Claude Code agents a voice. A text-to-speech MCP server with 54 unique
 
 ## Quick Start
 
-### Option 1: Add to Claude Code (recommended)
+### One-line install
+
+```bash
+claude mcp add voice-mcp -s user -- npx -y voice-tts-mcp
+```
+
+That's it. Restart Claude Code and ask it to "say hello using voice_speak".
+
+### Alternative: VS Code / Cursor
 
 Add to your project's `.vscode/mcp.json`:
 
@@ -22,20 +30,14 @@ Add to your project's `.vscode/mcp.json`:
   "servers": {
     "voice-mcp": {
       "type": "stdio",
-      "command": "node",
-      "args": ["/path/to/voice-mcp/packages/mcp-server/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "voice-mcp"]
     }
   }
 }
 ```
 
-Or add globally via CLI:
-
-```bash
-claude mcp add voice-mcp -- node /path/to/voice-mcp/packages/mcp-server/dist/index.js
-```
-
-### Option 2: Build from source
+### Build from source
 
 ```bash
 git clone https://github.com/gabenodland/voice-mcp.git
@@ -44,7 +46,11 @@ npm install
 npm run build
 ```
 
-Then configure Claude Code to use the built MCP server (see Option 1).
+Then point Claude Code at the built entry:
+
+```bash
+claude mcp add voice-mcp -s user -- node /path/to/voice-mcp/packages/mcp-server/dist/index.js
+```
 
 ## Available Tools
 

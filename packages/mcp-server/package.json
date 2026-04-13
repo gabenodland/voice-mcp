@@ -1,10 +1,10 @@
 {
-  "name": "voice-mcp",
+  "name": "voice-tts-mcp",
   "version": "1.0.0",
   "description": "MCP server providing text-to-speech voice tools for Claude Code agents",
   "type": "module",
   "bin": {
-    "voice-mcp": "./dist/index.js"
+    "voice-tts-mcp": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "files": ["dist"],

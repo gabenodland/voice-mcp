@@ -185,7 +185,7 @@ Add to your Claude Code settings:
   "mcpServers": {
     "voice": {
       "command": "npx",
-      "args": ["-y", "voice-mcp"]
+      "args": ["-y", "voice-tts-mcp"]
     }
   }
 }
