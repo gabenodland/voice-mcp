@@ -5,7 +5,6 @@ dist/
 *.mp3
 
 # IDE / local config
-.vscode/
 .serena/
 .claude/settings.local.json
 .github/

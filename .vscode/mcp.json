@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "voice-tts-mcp": {
+      "type": "stdio",
+      "command": "voice-tts-mcp"
+    }
+  }
+}
