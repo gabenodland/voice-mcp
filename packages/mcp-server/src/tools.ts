@@ -18,6 +18,14 @@ function validateRate(rate: string): string {
   return rate;
 }
 
+function validateVolume(volume: string): string {
+  const match = volume.match(/^([+-]?\d{1,3})%$/);
+  if (!match) return "+0%";
+  const val = parseInt(match[1], 10);
+  if (val < -50 || val > 50) return "+0%";
+  return volume;
+}
+
 function errorText(msg: string) {
   return { content: [{ type: "text" as const, text: msg }], isError: true };
 }
@@ -54,6 +62,7 @@ export function registerTools(server: McpServer) {
     async ({ text, agent_name, voice, rate, pitch, volume }) => {
       const agent = agent_name ?? "default";
       const validatedRate = rate ? validateRate(rate) : undefined;
+      const validatedVolume = volume ? validateVolume(volume) : undefined;
 
       const response = await sendOrLaunch({
         cmd: "speak",
@@ -62,7 +71,7 @@ export function registerTools(server: McpServer) {
         voice,
         rate: validatedRate,
         pitch,
-        volume,
+        volume: validatedVolume,
         _rate_explicit: rate !== undefined,
         _pitch_explicit: pitch !== undefined,
       });
@@ -119,7 +128,7 @@ export function registerTools(server: McpServer) {
   // ── voice_register ───────────────────────────────────────────────────
   server.tool(
     "voice_register",
-    "Register or update a voice assignment for an agent. Assigns a unique voice from the 54-voice pool.",
+    "Register or update a voice assignment for an agent. Assigns a unique voice from the 55-voice pool.",
     {
       agent_name: z.string().describe("The agent name to register"),
       voice: z.string().optional().describe("Specific voice to assign (e.g., 'en-US-AriaNeural')"),
@@ -274,6 +283,30 @@ Paste this into your CLAUDE.md rules section:
       }
 
       return okText(`Voice control panel opened at ${url}`);
+    },
+  );
+
+  // ── voice_mute ───────────────────────────────────────────────────────
+  server.tool(
+    "voice_mute",
+    "Mute all voice output. Stops current playback immediately and silences all queued messages.",
+    {},
+    async () => {
+      const response = await sendOrLaunch({ cmd: "mute" });
+      if (!response) return errorText("Voice backend is not running.");
+      return okText("Voice muted. All audio output is silenced.");
+    },
+  );
+
+  // ── voice_unmute ─────────────────────────────────────────────────────
+  server.tool(
+    "voice_unmute",
+    "Unmute voice output. Resumes normal playback for new messages.",
+    {},
+    async () => {
+      const response = await sendOrLaunch({ cmd: "unmute" });
+      if (!response) return errorText("Voice backend is not running.");
+      return okText("Voice unmuted. Audio output resumed.");
     },
   );
 }

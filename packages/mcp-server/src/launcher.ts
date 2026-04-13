@@ -3,39 +3,33 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-let launchAttempted = false;
+let lastLaunchTime = 0;
+const LAUNCH_COOLDOWN_MS = 10000; // Don't retry more than once per 10 seconds
 
 /**
  * Fire-and-forget launch of the voice backend process.
  * Non-blocking, best-effort. If it fails, the MCP tool returns a helpful error.
- * Only attempts once per MCP server session to avoid spamming.
+ * Retries are allowed after a cooldown period (handles backend crashes mid-session).
  */
 export function ensureBackend(): void {
-  if (launchAttempted) return;
-  launchAttempted = true;
+  const now = Date.now();
+  if (now - lastLaunchTime < LAUNCH_COOLDOWN_MS) return;
+  lastLaunchTime = now;
+
+  const backendEntry = resolveBackendPath();
+  if (!backendEntry) {
+    console.error("voice-mcp: Could not find backend entry point. Build the backend with: npm run build");
+    return;
+  }
 
   try {
-    const backendEntry = resolveBackendPath();
-
-    if (backendEntry) {
-      const child = spawn("node", [backendEntry], {
-        detached: true,
-        stdio: "ignore",
-        windowsHide: true,
-      });
-      child.unref();
-      console.error(`voice-mcp: Launched backend (pid ${child.pid})`);
-    } else {
-      // Try npx as fallback
-      const child = spawn("npx", ["-y", "@voice-mcp/backend"], {
-        detached: true,
-        stdio: "ignore",
-        windowsHide: true,
-        shell: true,
-      });
-      child.unref();
-      console.error("voice-mcp: Launched backend via npx");
-    }
+    const child = spawn("node", [backendEntry], {
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    child.unref();
+    console.error(`voice-mcp: Launched backend (pid ${child.pid})`);
   } catch (err) {
     console.error("voice-mcp: Failed to launch backend:", err);
   }

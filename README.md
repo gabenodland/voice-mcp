@@ -1,6 +1,6 @@
 # voice-mcp
 
-Give your Claude Code agents a voice. A text-to-speech MCP server with 54 unique voices, a real-time web dashboard, and per-agent voice persistence.
+Give your Claude Code agents a voice. A text-to-speech MCP server with 55 unique voices, a real-time web dashboard, and per-agent voice persistence.
 
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-green) ![License](https://img.shields.io/badge/License-MIT-blue) ![MCP](https://img.shields.io/badge/MCP-Compatible-purple)
 
@@ -104,7 +104,7 @@ voice-mcp/
 
 ## Voice Pool
 
-54 neural voices across 14 English locales plus multilingual accents:
+55 neural voices across 14 English locales plus multilingual accents:
 
 - US (17), UK (5), Australia (3), Canada (2), Ireland (2), India (3)
 - New Zealand (2), Hong Kong (2), Philippines (2), Singapore (2)
