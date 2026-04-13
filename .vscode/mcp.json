@@ -2,7 +2,8 @@
   "servers": {
     "voice-tts-mcp": {
       "type": "stdio",
-      "command": "voice-tts-mcp"
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "voice-tts-mcp"]
     }
   }
 }

@@ -42,7 +42,7 @@ export function openBrowserOnce(port: number): void {
   }
 }
 
-export function startWebUI(port: number) {
+export function startWebUI(port: number, rendererOverride?: string) {
   const app = express();
   const httpServer = createServer(app);
 
@@ -73,7 +73,7 @@ export function startWebUI(port: number) {
   });
 
   // Serve static renderer files
-  const rendererDir = path.resolve(__dirname, "../renderer");
+  const rendererDir = rendererOverride ?? path.resolve(__dirname, "../renderer");
   app.use(express.static(rendererDir));
 
   // API endpoint for voice data

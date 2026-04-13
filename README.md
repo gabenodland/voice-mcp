@@ -15,56 +15,68 @@ Works with any MCP-compatible tool: Claude Code, VS Code, Cursor, Windsurf, and 
 
 ## Quick Start
 
-### Install
-
-```bash
-npm install -g voice-tts-mcp
-```
-
 ### VS Code / Cursor / Windsurf
 
 Add to your project's `.vscode/mcp.json`:
 
+**macOS / Linux:**
 ```json
 {
   "servers": {
     "voice-tts-mcp": {
       "type": "stdio",
-      "command": "voice-tts-mcp"
+      "command": "npx",
+      "args": ["-y", "voice-tts-mcp"]
     }
   }
 }
 ```
 
+**Windows:**
+```json
+{
+  "servers": {
+    "voice-tts-mcp": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "voice-tts-mcp"]
+    }
+  }
+}
+```
+
+> **Why `cmd /c` on Windows?** Node.js `child_process.spawn()` can't run `npx` directly on Windows because it's a `.cmd` script. Wrapping with `cmd /c` fixes this. This affects all MCP servers, not just this one.
+
 ### Claude Code
 
+**macOS / Linux:**
+```bash
+claude mcp add voice-tts-mcp -s user -- npx -y voice-tts-mcp
+```
+
+**Windows:**
+```bash
+claude mcp add voice-tts-mcp -s user -- cmd /c npx -y voice-tts-mcp
+```
+
+### Alternative: Global install (any platform)
+
+If you prefer a global install that works identically everywhere:
+
+```bash
+npm install -g voice-tts-mcp
+```
+
+Then configure your MCP client with:
+```json
+{
+  "command": "voice-tts-mcp"
+}
+```
+
+Or for Claude Code:
 ```bash
 claude mcp add voice-tts-mcp -s user -- voice-tts-mcp
-```
-
-### Any MCP client
-
-The server runs over stdio. Point your MCP client at:
-
-```
-voice-tts-mcp
-```
-
-Restart your editor and ask the AI to "say hello using voice_speak".
-
-### Build from source
-
-```bash
-git clone https://github.com/gabenodland/voice-mcp.git
-cd voice-mcp
-npm install
-npm run build
-```
-
-Then point your MCP client at the built entry:
-
-```bash
-node /path/to/voice-mcp/packages/mcp-server/dist/index.js
 ```
 
 ## Available Tools
@@ -106,18 +118,20 @@ The voice backend serves a real-time dashboard at `http://localhost:52719`:
 
 ## Architecture
 
+The npm package `voice-tts-mcp` is self-contained — it includes both the MCP server and the voice backend. No additional packages to install.
+
 ```
-voice-mcp/
-  packages/
-    shared/          # Types, constants, voice registry, TCP client
-    mcp-server/      # MCP tools (published to npm as voice-tts-mcp)
-    voice-backend/   # TCP server, TTS engine, audio player, web UI
+voice-tts-mcp (npm package)
+  dist/
+    index.js         # MCP server (stdio) — what your editor talks to
+    backend-entry.js # Voice backend — TTS, audio, web dashboard
+    renderer/        # Web UI static files
 ```
 
 - **MCP Server** communicates with your editor via stdio
-- **Voice Backend** runs as a background process, handling TTS and audio playback
+- **Voice Backend** auto-launches as a background process on first `voice_speak` call
 - **TCP protocol** connects the MCP server to the backend on port 52718
-- **WebSocket** provides real-time state updates to the web dashboard
+- **WebSocket** provides real-time state updates to the web dashboard on port 52719
 
 ## Voice Pool
 
@@ -140,6 +154,15 @@ voice-mcp/
 
 - Node.js 18+
 - Internet connection (for Edge TTS)
+
+## Building from source
+
+```bash
+git clone https://github.com/gabenodland/voice-mcp.git
+cd voice-mcp
+npm install
+npm run build
+```
 
 ## License
 

@@ -1,26 +1,33 @@
 {
   "name": "voice-tts-mcp",
-  "version": "1.0.0",
-  "description": "MCP server providing text-to-speech voice tools for Claude Code agents",
+  "version": "1.1.0",
+  "description": "Text-to-speech MCP server with 55 neural voices, real-time web dashboard, and per-agent voice persistence",
   "type": "module",
   "bin": {
-    "voice-tts-mcp": "./dist/index.js"
+    "voice-tts-mcp": "./dist/index.js",
+    "voice-tts-backend": "./dist/backend-entry.js"
   },
   "main": "./dist/index.js",
   "files": ["dist"],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --target node18 --dts --clean",
+    "build": "tsup && node -e \"const fs=require('fs');const p=require('path');const src=p.join('..','voice-backend','src','renderer');const dst=p.join('dist','renderer');fs.mkdirSync(dst,{recursive:true});fs.readdirSync(src).forEach(f=>fs.copyFileSync(p.join(src,f),p.join(dst,f)))\"",
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "express": "^5.1.0",
+    "koffi": "^2.9.0",
+    "node-edge-tts": "^1.2.10",
+    "ws": "^8.20.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {
-    "typescript": "^5.8.0",
+    "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.1",
     "tsup": "^8.5.0",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.0"
   },
   "engines": {
     "node": ">=18"
@@ -31,5 +38,5 @@
     "type": "git",
     "url": "https://github.com/gabenodland/voice-mcp"
   },
-  "keywords": ["mcp", "voice", "tts", "text-to-speech", "claude", "edge-tts"]
+  "keywords": ["mcp", "voice", "tts", "text-to-speech", "edge-tts", "claude", "vscode", "cursor"]
 }
