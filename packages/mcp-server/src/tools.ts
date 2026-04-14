@@ -78,8 +78,8 @@ export function registerTools(server: McpServer) {
 
       if (!response) {
         return errorText(
-          "Voice backend is not running. Start it with: npx voice-mcp-backend\n" +
-          "Or it will auto-start on the next attempt."
+          "Voice backend is not running. It will auto-start on the next voice_speak call.\n" +
+          "If this persists, reinstall with: npm install -g voice-tts-mcp"
         );
       }
 
@@ -181,18 +181,19 @@ export function registerTools(server: McpServer) {
   // ── voice_setup ──────────────────────────────────────────────────────
   server.tool(
     "voice_setup",
-    "Get setup instructions and CLAUDE.md configuration for voice-mcp.",
+    "Get setup instructions and configuration for voice-tts-mcp.",
     {},
     async () => {
       return okText(
 `# Voice MCP Setup
 
 ## MCP Configuration
-Add to your Claude Code settings:
+Add to your editor's MCP settings (e.g. .vscode/mcp.json):
 \`\`\`json
 {
-  "mcpServers": {
-    "voice": {
+  "servers": {
+    "voice-tts-mcp": {
+      "type": "stdio",
       "command": "npx",
       "args": ["-y", "voice-tts-mcp"]
     }
@@ -200,8 +201,8 @@ Add to your Claude Code settings:
 }
 \`\`\`
 
-## CLAUDE.md Voice Rule
-Paste this into your CLAUDE.md rules section:
+## Voice Rule
+Paste this into your project's AI instructions file (CLAUDE.md, .cursorrules, etc.):
 \`\`\`
 **ALWAYS USE VOICE** — MANDATORY: call the \`voice_speak\` MCP tool with every completion or question.
 - \`agent_name\`: pick a name for yourself (e.g. "joe", "main", "narrator") and reuse it every call.
@@ -239,8 +240,8 @@ Paste this into your CLAUDE.md rules section:
 
       if (!response) {
         return errorText(
-          "Voice backend is not running. Start it with: npx voice-mcp-backend\n" +
-          "Or it will auto-start on the next attempt."
+          "Voice backend is not running. It will auto-start on the next voice_speak call.\n" +
+          "If this persists, reinstall with: npm install -g voice-tts-mcp"
         );
       }
 

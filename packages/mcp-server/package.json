@@ -1,6 +1,6 @@
 {
   "name": "voice-tts-mcp",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "description": "Text-to-speech MCP server with 55 neural voices, real-time web dashboard, and per-agent voice persistence",
   "type": "module",
   "bin": {
@@ -8,7 +8,9 @@
     "voice-tts-backend": "./dist/backend-entry.js"
   },
   "main": "./dist/index.js",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup && node -e \"const fs=require('fs');const p=require('path');const src=p.join('..','voice-backend','src','renderer');const dst=p.join('dist','renderer');fs.mkdirSync(dst,{recursive:true});fs.readdirSync(src).forEach(f=>fs.copyFileSync(p.join(src,f),p.join(dst,f)))\"",
     "dev": "tsx src/index.ts"
@@ -38,5 +40,14 @@
     "type": "git",
     "url": "https://github.com/gabenodland/voice-mcp"
   },
-  "keywords": ["mcp", "voice", "tts", "text-to-speech", "edge-tts", "claude", "vscode", "cursor"]
+  "keywords": [
+    "mcp",
+    "voice",
+    "tts",
+    "text-to-speech",
+    "edge-tts",
+    "claude",
+    "vscode",
+    "cursor"
+  ]
 }

@@ -40,7 +40,7 @@ function resolveBackendPath(): string | null {
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
     // 1. Same dist/ directory (npm package — backend bundled alongside MCP server)
-    const sameDirPath = path.resolve(__dirname, "backend.js");
+    const sameDirPath = path.resolve(__dirname, "backend-entry.js");
     if (existsSync(sameDirPath)) return sameDirPath;
 
     // 2. Monorepo sibling package (development)

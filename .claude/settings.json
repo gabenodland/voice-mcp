@@ -8,7 +8,8 @@
       "mcp__voice-mcp__voice_agents",
       "mcp__voice-mcp__voice_register",
       "mcp__voice-mcp__voice_ui",
-      "mcp__voice-mcp__voice_setup"
+      "mcp__voice-mcp__voice_setup",
+      "mcp__voice-tts-mcp__voice_speak"
     ]
   }
 }
