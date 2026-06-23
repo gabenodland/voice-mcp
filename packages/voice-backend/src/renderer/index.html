@@ -52,6 +52,14 @@
       <h2>Agents</h2>
       <button id="btn-close-drawer" class="btn btn-small">✕</button>
     </div>
+    <div class="device-section">
+      <label class="device-label" for="device-select">Output device</label>
+      <div class="device-row">
+        <select id="device-select" class="agent-select"></select>
+        <button id="btn-test-device" type="button" class="btn btn-small">Test</button>
+      </div>
+      <div id="device-reason" class="device-reason" style="display:none"></div>
+    </div>
     <div id="agents-list" class="scroll-list"></div>
     <div id="agents-empty" class="empty-state">No agents registered yet</div>
     <div class="agents-actions">
