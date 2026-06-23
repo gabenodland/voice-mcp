@@ -994,17 +994,25 @@ export class WindowsWasapiPlayer implements AudioPlayerBackend {
   }
 
   private async pump(): Promise<void> {
-    while (!this.stopped) {
-      if (this.paused) { await sleep(20); continue; }
-      while (!this.paused && !this.stopped && this.writeCursor < this.totalFrames
-             && (this.writeCursor - this.audibleFrames) < LOOKAHEAD_FRAMES) {
-        this.rt.write(this.frames[this.writeCursor]);
-        this.writeCursor++;
+    try {
+      while (!this.stopped) {
+        if (this.paused) { await sleep(20); continue; }
+        while (!this.paused && !this.stopped && this.rt
+               && this.writeCursor < this.totalFrames
+               && (this.writeCursor - this.audibleFrames) < LOOKAHEAD_FRAMES) {
+          this.rt.write(this.frames[this.writeCursor]);
+          this.writeCursor++;
+        }
+        if (this.writeCursor >= this.totalFrames && this.audibleFrames >= this.totalFrames) break;
+        await sleep(10);
       }
-      if (this.writeCursor >= this.totalFrames && this.audibleFrames >= this.totalFrames) break;
-      await sleep(10);
+    } catch (err) {
+      // A native write/stream error must still settle play(), or the awaited
+      // play() never resolves and the playback queue deadlocks.
+      console.error("voice-mcp-backend: WASAPI pump error:", err);
+    } finally {
+      this.settle();
     }
-    this.settle();
   }
 
   /** Idempotent: cleans up, resolves the pending play() exactly once. */
@@ -1085,7 +1093,7 @@ export async function playProbe(deviceName: string): Promise<void> {
   for (const f of frames) rt.write(f);
   const deadline = Date.now() + 3000;
   while (audible < frames.length && Date.now() < deadline) await sleep(10);
-  try { rt.clearOutputQueue(); rt.closeStream(); } catch { /* ignore */ }
+  try { rt.clearOutputQueue(); rt.stop(); rt.closeStream(); } catch { /* ignore */ }
 }
 ```
 
