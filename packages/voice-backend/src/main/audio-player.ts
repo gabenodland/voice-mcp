@@ -1,6 +1,8 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import type { AudioPlayerBackend, PlayerState } from "./player-types.js";
 import { WindowsMCIPlayer } from "./mci-player.js";
+import { WindowsWasapiPlayer } from "./wasapi-player.js";
+import { getConfiguredDevice } from "./audio-device.js";
 
 // Global player state
 let currentPlayer: AudioPlayerBackend | null = null;
@@ -52,6 +54,8 @@ export function stopAudio(): void {
 
 function createPlayer(): AudioPlayerBackend {
   if (process.platform === "win32") {
+    const pref = getConfiguredDevice(); // null = no specific device / kill-switch → MCI
+    if (pref) return new WindowsWasapiPlayer(pref);
     return new WindowsMCIPlayer();
   } else if (process.platform === "darwin") {
     return new MacAfplayPlayer();
