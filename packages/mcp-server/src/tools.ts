@@ -220,6 +220,7 @@ Paste this into your project's AI instructions file (CLAUDE.md, .cursorrules, et
 - **voice_register** — Register/update agent voice settings
 - **voice_agents** — List all agents and their voices
 - **voice_setup** — This help text
+- **voice_devices** — List/select the audio output device (Windows)
 `
       );
     },
@@ -308,6 +309,44 @@ Paste this into your project's AI instructions file (CLAUDE.md, .cursorrules, et
       const response = await sendOrLaunch({ cmd: "unmute" });
       if (!response) return errorText("Voice backend is not running.");
       return okText("Voice unmuted. Audio output resumed.");
+    },
+  );
+
+  // ── voice_devices ────────────────────────────────────────────────────
+  server.tool(
+    "voice_devices",
+    "List available audio output devices (Windows), or select one. Call with no args to list; pass `select` (a device name, or 'default' for the system default) to choose where voice plays.",
+    {
+      select: z.string().optional().describe("Device name to use, or 'default' for the system default endpoint"),
+    },
+    async ({ select }) => {
+      if (select !== undefined) {
+        const r = await sendOrLaunch({ cmd: "set_device", name: select });
+        if (!r) return errorText("Voice backend is not running.");
+        if (!r.ok) {
+          // Spec: an unknown name returns the error PLUS the current device list.
+          const listed = await sendOrLaunch({ cmd: "list_devices" });
+          const names = listed && (listed as any).available
+            ? "\n\nAvailable output devices:\n" +
+              (listed as any).devices.map((d: any) => `  ${d.name}${d.isDefault ? " (system default)" : ""}`).join("\n")
+            : "";
+          return errorText(`${(r as any).error}${names}`);
+        }
+        return okText((r as any).message ?? `Output device set to ${select}`);
+      }
+      const r = await sendOrLaunch({ cmd: "list_devices" });
+      if (!r) return errorText("Voice backend is not running.");
+      const res = r as any;
+      if (!res.available) {
+        return okText(`Output device selection unavailable: ${res.reason}\nActive: ${res.active}`);
+      }
+      const lines = res.devices.map(
+        (d: any) => `${d.active ? "● " : "  "}${d.name}${d.isDefault ? " (system default)" : ""}`
+      );
+      return okText(
+        `Active output: ${res.active}\n\nAvailable output devices:\n${lines.join("\n")}\n\n` +
+        `Use voice_devices with select:"<name>" to choose, or select:"default" to reset.`
+      );
     },
   );
 }
