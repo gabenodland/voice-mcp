@@ -1,6 +1,6 @@
 {
   "name": "voice-tts-mcp",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Text-to-speech MCP server with 55 neural voices, real-time web dashboard, and per-agent voice persistence",
   "type": "module",
   "bin": {
