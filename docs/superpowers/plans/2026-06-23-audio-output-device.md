@@ -117,12 +117,16 @@ This is **throwaway** code whose only job is to de-risk the engine and record co
 ```ts
 // packages/voice-backend/scripts/spike-wasapi.ts
 // Throwaway. Run: npx tsx packages/voice-backend/scripts/spike-wasapi.ts
-import { RtAudio, RtAudioApi, RtAudioFormat } from "audify";
 import { MPEGDecoder } from "mpg123-decoder";
 import { EdgeTTS } from "node-edge-tts";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createRequire } from "node:module";
+
+// audify is CommonJS; named exports are not detectable from ESM — load via require().
+const require = createRequire(import.meta.url);
+const { RtAudio, RtAudioApi, RtAudioFormat } = require("audify");
 
 const FRAME_SIZE = 480;       // ~20ms @ 24kHz — confirm/adjust
 const LOOKAHEAD = 4;          // bounded look-ahead in frames — confirm/adjust
@@ -151,8 +155,10 @@ async function main() {
   console.log("OUTPUT DEVICES:");
   devices.forEach((d) => console.log(`  id=${d.id} default=${d.isDefaultOutput} "${d.name}"`));
 
-  // Pick a NON-default device if one exists, else default.
-  const target = devices.find((d) => !d.isDefaultOutput) ?? devices[0];
+  // Pick the device named on the command line (substring), else first non-default, else default.
+  const want = (process.argv[2] ?? "").toLowerCase();
+  const target = (want ? devices.find((d) => d.name.toLowerCase().includes(want)) : undefined)
+    ?? devices.find((d) => !d.isDefaultOutput) ?? devices[0];
   console.log(`\nTARGET: id=${target.id} "${target.name}"\n`);
 
   // Synthesize a test clip.
@@ -207,6 +213,7 @@ async function main() {
   await done;
   console.log(`\nRESULT: audibleFrames=${audible}/${total} play resolved ${resolveCount} time(s)`);
   console.log("LISTEN: did it (1) play centered in BOTH ears, (2) at correct pitch/speed, (3) pause then resume mid-phrase without skipping?");
+  process.exit(0); // audify's native callback keeps the event loop alive; force a clean exit
 }
 main().catch((e) => { console.error(e); process.exit(1); });
 ```
