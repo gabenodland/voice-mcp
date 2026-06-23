@@ -1,5 +1,7 @@
 import net from "node:net";
-import { registry, type TcpCommand, type TcpResponse, type SpeakCommand, type RegisterAgentCommand, type SetVoiceCommand, type TestVoiceCommand, type ReplayItemCommand } from "@voice-mcp/shared";
+import { registry, type TcpCommand, type TcpResponse, type SpeakCommand, type RegisterAgentCommand, type SetVoiceCommand, type TestVoiceCommand, type ReplayItemCommand, type ListDevicesCommand, type SetDeviceCommand, type TestDeviceCommand } from "@voice-mcp/shared";
+import { listDevices, setDevice } from "./audio-device.js";
+import { playProbe } from "./wasapi-player.js";
 import { playbackQueue } from "./playback-queue.js";
 import { getPlayerState } from "./audio-player.js";
 import { broadcastState, openBrowserOnce } from "./web-ui.js";
@@ -43,6 +45,12 @@ function dispatch(command: TcpCommand): TcpResponse {
       return handleTestVoice(command as TestVoiceCommand);
     case "replay_item":
       return handleReplayItem(command as ReplayItemCommand);
+    case "list_devices":
+      return handleListDevices();
+    case "set_device":
+      return handleSetDevice(command as SetDeviceCommand);
+    case "test_device":
+      return handleTestDevice(command as TestDeviceCommand);
     default:
       return { ok: false, error: `Unknown command: ${(command as any).cmd}` };
   }
@@ -86,6 +94,7 @@ function handleStatus(): TcpResponse {
     text: state.currentText,
     muted: playbackQueue.isMuted(),
     queue_size: playbackQueue.size(),
+    activeDevice: listDevices().active,
   };
 }
 
@@ -137,6 +146,24 @@ function handleReplayItem(cmd: ReplayItemCommand): TcpResponse {
   if (!found) return { ok: false, error: "Item not found or has no audio" };
   broadcastState();
   return { ok: true, message: "Replaying item" };
+}
+
+function handleListDevices(): TcpResponse {
+  const r = listDevices();
+  return { ok: true, available: r.available, reason: r.reason, active: r.active, devices: r.devices };
+}
+
+function handleSetDevice(cmd: SetDeviceCommand): TcpResponse {
+  const r = setDevice(cmd.name);
+  if (!r.ok) return { ok: false, error: r.error ?? "Failed to set device" };
+  broadcastState(); // only on success — setDevice already invalidated the device cache
+  return { ok: true, message: `Output device set to ${r.active}` };
+}
+
+function handleTestDevice(cmd: TestDeviceCommand): TcpResponse {
+  // Fire-and-forget: do NOT await drain, so dispatch() stays synchronous.
+  void playProbe(cmd.name).catch((err) => console.error("voice-mcp-backend: test_device error:", err));
+  return { ok: true, message: `Testing device: ${cmd.name}` };
 }
 
 const MAX_REQUEST_SIZE = 1024 * 1024; // 1MB safety cap
