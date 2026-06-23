@@ -6,6 +6,7 @@ export default defineConfig({
   format: ["esm"],
   target: "node18",
   clean: true,
+  external: ["audify", "mpg123-decoder", "koffi"],
   esbuildOptions(options) {
     options.alias = {
       "@voice-mcp/shared": path.resolve(__dirname, "../shared/src/index.ts"),
