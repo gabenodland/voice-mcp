@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
-import { AUDIO_CONFIG_FILE } from "@voice-mcp/shared";
-import type { DevicePref, DeviceInfo, DeviceListResult } from "@voice-mcp/shared";
+import { AUDIO_CONFIG_FILE, DEFAULT_LEADIN_MS, LEADIN_MS_MIN, LEADIN_MS_MAX } from "@voice-mcp/shared";
+import type { DevicePref, DeviceInfo, DeviceListResult, AudioConfig } from "@voice-mcp/shared";
 
 const require = createRequire(import.meta.url);
 
@@ -28,6 +28,28 @@ export function isWasapiDisabled(): boolean {
 /** The active-device label derived from a saved preference. Single source of truth. */
 function activeLabel(pref: DevicePref | null): string {
   return pref?.name && pref.name !== "default" ? pref.name : "System default";
+}
+
+/** Validate + clamp a lead-in value. Non-finite (NaN/Infinity/non-number) → default. 0 is valid. */
+export function clampLeadIn(ms: unknown): number {
+  const n = typeof ms === "number" && Number.isFinite(ms) ? ms : DEFAULT_LEADIN_MS;
+  return Math.min(LEADIN_MS_MAX, Math.max(LEADIN_MS_MIN, n));
+}
+
+/** Frames of silence for a lead-in. ceil so the user never gets LESS than requested.
+ *  frameMs = FRAME_SIZE / SAMPLE_RATE = 480 / 24000 = 20ms. */
+export function leadInFrameCount(ms: number, frameMs = 20): number {
+  return Math.ceil(clampLeadIn(ms) / frameMs);
+}
+
+/** Normalize parsed JSON (incl. the legacy device-only shape) into an AudioConfig. */
+export function normalizeConfig(parsed: unknown): AudioConfig {
+  const p = (parsed && typeof parsed === "object") ? parsed as Record<string, any> : {};
+  const src = (p.device && typeof p.device === "object") ? p.device : p; // legacy: device fields at top level
+  const device: DevicePref | null = typeof src.name === "string"
+    ? { name: src.name, hintDeviceId: typeof src.hintDeviceId === "number" ? src.hintDeviceId : undefined }
+    : null;
+  return { device, leadInMs: clampLeadIn(p.leadInMs) };
 }
 
 /** Map a live RtAudio instance's output endpoints to DeviceInfo. Shared by
@@ -56,29 +78,46 @@ export function pickDevice(devices: DeviceInfo[], pref: DevicePref | null): Devi
   return null;
 }
 
-export function loadPref(): DevicePref | null {
+export function loadConfig(): AudioConfig {
   try {
-    const parsed = JSON.parse(fs.readFileSync(AUDIO_CONFIG_FILE, "utf-8"));
-    if (parsed && typeof parsed.name === "string") {
-      return { name: parsed.name, hintDeviceId: typeof parsed.hintDeviceId === "number" ? parsed.hintDeviceId : undefined };
-    }
-    return null;
+    return normalizeConfig(JSON.parse(fs.readFileSync(AUDIO_CONFIG_FILE, "utf-8")));
   } catch {
-    return null; // absent or corrupt → no preference
+    return { device: null, leadInMs: DEFAULT_LEADIN_MS }; // absent or corrupt
   }
 }
 
-export function savePref(pref: DevicePref | null): void {
+export function saveConfig(cfg: AudioConfig): void {
   try {
-    if (!pref || pref.name === "default") {
-      if (fs.existsSync(AUDIO_CONFIG_FILE)) fs.unlinkSync(AUDIO_CONFIG_FILE);
-      return;
-    }
     fs.mkdirSync(path.dirname(AUDIO_CONFIG_FILE), { recursive: true });
-    fs.writeFileSync(AUDIO_CONFIG_FILE, JSON.stringify(pref));
+    fs.writeFileSync(AUDIO_CONFIG_FILE, JSON.stringify({
+      device: cfg.device && cfg.device.name !== "default" ? cfg.device : null,
+      leadInMs: clampLeadIn(cfg.leadInMs),
+    }));
   } catch (err) {
-    console.error("voice-mcp-backend: failed to save device pref:", err);
+    console.error("voice-mcp-backend: failed to save audio config:", err);
   }
+}
+
+export function loadPref(): DevicePref | null {
+  return loadConfig().device;
+}
+
+/** Update only the device; preserves the persisted leadInMs (read-modify-write). */
+export function savePref(pref: DevicePref | null): void {
+  saveConfig({ device: pref, leadInMs: loadConfig().leadInMs });
+}
+
+export function getLeadInMs(): number {
+  return loadConfig().leadInMs; // already clamped by normalizeConfig
+}
+
+/** Update only the lead-in; preserves the persisted device (read-modify-write). */
+export function setLeadInMs(ms: number): { ok: true; leadInMs: number } {
+  const cfg = loadConfig();
+  const leadInMs = clampLeadIn(ms);
+  saveConfig({ device: cfg.device, leadInMs });
+  invalidateDeviceCache();
+  return { ok: true, leadInMs };
 }
 
 /** Enumerate output devices on a fresh RtAudio instance. Returns [] if unavailable.
