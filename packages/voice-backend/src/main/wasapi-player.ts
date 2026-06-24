@@ -3,7 +3,7 @@ import { MPEGDecoder } from "mpg123-decoder";
 import type { AudioPlayerBackend, PlayerState } from "./player-types.js";
 import type { DevicePref } from "@voice-mcp/shared";
 import { WindowsMCIPlayer } from "./mci-player.js";
-import { loadAudify, pickDevice, savePref, isWasapiDisabled, mapOutputDevices, WASAPI_API } from "./audio-device.js";
+import { loadAudify, pickDevice, savePref, isWasapiDisabled, mapOutputDevices, WASAPI_API, getLeadInMs, leadInFrameCount } from "./audio-device.js";
 import { monoToInterleavedStereo, interleaveChannels, sliceIntoFrames, generateSine } from "./pcm-utils.js";
 
 const FORMAT_FLOAT32 = 0x10; // RtAudioFormat.RTAUDIO_FLOAT32
@@ -12,6 +12,10 @@ const LOOKAHEAD_FRAMES = 4;  // bounded look-ahead — spike-confirmed
 const SAMPLE_RATE = 24000;
 const CHANNELS = 2;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// One zeroed stereo float32 frame, reused for the lead-in. READ-ONLY: it is only ever
+// passed to rt.write() (same treatment as decoded frames in the pump), never mutated.
+const SILENT_FRAME: Buffer = Buffer.alloc(FRAME_SIZE * CHANNELS * 4);
 
 async function decodeAsync(filepath: string): Promise<Float32Array> {
   const decoder = new MPEGDecoder();
@@ -51,7 +55,9 @@ export class WindowsWasapiPlayer implements AudioPlayerBackend {
       if (chosen.id !== this.pref.hintDeviceId) savePref({ name: chosen.name, hintDeviceId: chosen.id });
 
       const stereo = await decodeAsync(filepath);
-      this.frames = sliceIntoFrames(stereo, FRAME_SIZE, CHANNELS);
+      const lead = leadInFrameCount(getLeadInMs());
+      this.frames = Array.from({ length: lead }, () => SILENT_FRAME)
+        .concat(sliceIntoFrames(stereo, FRAME_SIZE, CHANNELS));
       this.totalFrames = this.frames.length;
       this.audibleFrames = 0;
       this.writeCursor = 0;
@@ -165,7 +171,9 @@ export async function playProbe(deviceName: string): Promise<void> {
   const chosen = pickDevice(mapOutputDevices(rt), { name: deviceName });
   if (!chosen) return;
 
-  const frames = sliceIntoFrames(monoToInterleavedStereo(generateSine(440, 0.4, SAMPLE_RATE)), FRAME_SIZE, CHANNELS);
+  const lead = leadInFrameCount(getLeadInMs());
+  const frames = Array.from({ length: lead }, () => SILENT_FRAME)
+    .concat(sliceIntoFrames(monoToInterleavedStereo(generateSine(440, 0.4, SAMPLE_RATE)), FRAME_SIZE, CHANNELS));
   let audible = 0;
   rt.openStream(
     { deviceId: chosen.id, nChannels: CHANNELS, firstChannel: 0 },
