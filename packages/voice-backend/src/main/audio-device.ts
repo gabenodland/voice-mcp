@@ -69,12 +69,15 @@ export function mapOutputDevices(rt: any, pref: DevicePref | null = null): Devic
 /** Pure: choose a device from an enumerated list given a saved preference. */
 export function pickDevice(devices: DeviceInfo[], pref: DevicePref | null): DeviceInfo | null {
   if (!pref || pref.name === "default") return null;
-  const byName = devices.find((d) => d.name === pref.name);
-  if (byName && byName.id !== 0) return byName;
+  // Prefer an exact id+name match: this disambiguates duplicate device names (e.g. two
+  // identically-named monitors) when the id is still stable.
   if (pref.hintDeviceId && pref.hintDeviceId !== 0) {
     const byHint = devices.find((d) => d.id === pref.hintDeviceId && d.name === pref.name);
     if (byHint) return byHint;
   }
+  // Fall back to name: the id drifted across replug/reboot but the name is stable.
+  const byName = devices.find((d) => d.name === pref.name);
+  if (byName && byName.id !== 0) return byName;
   return null;
 }
 
@@ -189,13 +192,6 @@ export function setDevice(nameOrDefault: string): { ok: boolean; error?: string;
   savePref({ name: match.name, hintDeviceId: match.id });
   invalidateDeviceCache();
   return { ok: true, active: match.name };
-}
-
-/** Active-device label for status, without a native device enumeration.
- *  Mirrors listDevices().active (System default when WASAPI is disabled/unavailable). */
-export function getActiveDeviceName(): string {
-  if (isWasapiDisabled() || !loadAudify()) return "System default";
-  return activeLabel(loadPref());
 }
 
 /** Sync — used by createPlayer() to decide MCI vs WASAPI. null = use MCI. */

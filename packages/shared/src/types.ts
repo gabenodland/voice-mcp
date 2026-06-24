@@ -106,7 +106,6 @@ export interface StatusResponse {
   text: string | null;
   muted: boolean;
   queue_size: number;
-  activeDevice?: string;   // "System default" or device name
 }
 
 export interface AgentsResponse {

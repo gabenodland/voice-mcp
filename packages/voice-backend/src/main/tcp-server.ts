@@ -1,6 +1,6 @@
 import net from "node:net";
 import { registry, type TcpCommand, type TcpResponse, type SpeakCommand, type RegisterAgentCommand, type SetVoiceCommand, type TestVoiceCommand, type ReplayItemCommand, type ListDevicesCommand, type SetDeviceCommand, type TestDeviceCommand, type SetLeadInCommand } from "@voice-mcp/shared";
-import { listDevices, setDevice, getActiveDeviceName, setLeadInMs } from "./audio-device.js";
+import { listDevices, setDevice, setLeadInMs } from "./audio-device.js";
 import { playProbe } from "./wasapi-player.js";
 import { playbackQueue } from "./playback-queue.js";
 import { getPlayerState } from "./audio-player.js";
@@ -96,7 +96,6 @@ function handleStatus(): TcpResponse {
     text: state.currentText,
     muted: playbackQueue.isMuted(),
     queue_size: playbackQueue.size(),
-    activeDevice: getActiveDeviceName(),
   };
 }
 

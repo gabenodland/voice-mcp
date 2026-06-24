@@ -417,6 +417,7 @@ function renderDevicePicker() {
 
   if (!data.available) {
     select.innerHTML = `<option>System default</option>`;
+    select.dataset.rendered = ""; // force a rebuild when devices become available again
     select.disabled = true;
     testBtn.disabled = true;
     reason.textContent = data.reason || "Device selection unavailable";
