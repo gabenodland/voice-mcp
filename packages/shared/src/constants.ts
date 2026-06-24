@@ -14,4 +14,9 @@ export const HISTORY_DIR = path.join(os.tmpdir(), "claude_voice_history");
 export const LOG_FILE = path.join(DATA_DIR, "voice_log.jsonl");
 export const ASSIGNMENTS_FILE = path.join(DATA_DIR, "voice_assignments.json");
 
-export const DEVICE_PREF_FILE = path.join(DATA_DIR, "audio_device.json");
+// Audio output config (device selection + Bluetooth lead-in). On-disk name kept as
+// audio_device.json so existing installs migrate in place.
+export const AUDIO_CONFIG_FILE = path.join(DATA_DIR, "audio_device.json");
+export const DEFAULT_LEADIN_MS = 200; // silence prepended to WASAPI playback (Bluetooth cold-start)
+export const LEADIN_MS_MIN = 0;
+export const LEADIN_MS_MAX = 1000;

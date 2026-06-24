@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
-import { DEVICE_PREF_FILE } from "@voice-mcp/shared";
+import { AUDIO_CONFIG_FILE } from "@voice-mcp/shared";
 import type { DevicePref, DeviceInfo, DeviceListResult } from "@voice-mcp/shared";
 
 const require = createRequire(import.meta.url);
@@ -58,7 +58,7 @@ export function pickDevice(devices: DeviceInfo[], pref: DevicePref | null): Devi
 
 export function loadPref(): DevicePref | null {
   try {
-    const parsed = JSON.parse(fs.readFileSync(DEVICE_PREF_FILE, "utf-8"));
+    const parsed = JSON.parse(fs.readFileSync(AUDIO_CONFIG_FILE, "utf-8"));
     if (parsed && typeof parsed.name === "string") {
       return { name: parsed.name, hintDeviceId: typeof parsed.hintDeviceId === "number" ? parsed.hintDeviceId : undefined };
     }
@@ -71,11 +71,11 @@ export function loadPref(): DevicePref | null {
 export function savePref(pref: DevicePref | null): void {
   try {
     if (!pref || pref.name === "default") {
-      if (fs.existsSync(DEVICE_PREF_FILE)) fs.unlinkSync(DEVICE_PREF_FILE);
+      if (fs.existsSync(AUDIO_CONFIG_FILE)) fs.unlinkSync(AUDIO_CONFIG_FILE);
       return;
     }
-    fs.mkdirSync(path.dirname(DEVICE_PREF_FILE), { recursive: true });
-    fs.writeFileSync(DEVICE_PREF_FILE, JSON.stringify(pref));
+    fs.mkdirSync(path.dirname(AUDIO_CONFIG_FILE), { recursive: true });
+    fs.writeFileSync(AUDIO_CONFIG_FILE, JSON.stringify(pref));
   } catch (err) {
     console.error("voice-mcp-backend: failed to save device pref:", err);
   }
