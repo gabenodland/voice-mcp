@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import { MPEGDecoder } from "mpg123-decoder";
 import type { AudioPlayerBackend, PlayerState } from "./player-types.js";
 import type { DevicePref } from "@voice-mcp/shared";
 import { WindowsMCIPlayer } from "./mci-player.js";
@@ -18,6 +17,11 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const SILENT_FRAME: Buffer = Buffer.alloc(FRAME_SIZE * CHANNELS * 4);
 
 async function decodeAsync(filepath: string): Promise<Float32Array> {
+  // Lazy import: mpg123-decoder is an optionalDependency. A static top-level import
+  // would crash the always-loaded module graph (tcp-server → wasapi-player) if the
+  // dep is absent. Importing here keeps it on the WASAPI path only; a load failure
+  // rejects and play()'s catch falls back to MCI — same deferral pattern as audify.
+  const { MPEGDecoder } = await import("mpg123-decoder");
   const decoder = new MPEGDecoder();
   await decoder.ready;
   const { channelData } = decoder.decode(new Uint8Array(fs.readFileSync(filepath)));
@@ -44,27 +48,34 @@ export class WindowsWasapiPlayer implements AudioPlayerBackend {
   }
 
   async play(filepath: string): Promise<void> {
+    // Report "playing" for the whole setup window (decode + openStream), not just
+    // after start() — otherwise status under-reports "stopped" mid-utterance.
+    this._state = "playing";
     try {
       const mod = loadAudify();
       if (!mod) throw new Error("audify unavailable");
 
-      // Resolve the device on the SAME instance we will openStream on.
+      // Resolve the device on the SAME instance we will openStream on. Assign this.rt
+      // immediately so cleanupStream() can release it if a later step throws.
       const rt = new mod.RtAudio(mod.RtAudioApi?.WINDOWS_WASAPI ?? WASAPI_API);
+      this.rt = rt;
       const chosen = pickDevice(mapOutputDevices(rt), this.pref);
       if (!chosen) throw new Error(`device not found: ${this.pref.name}`);
       if (chosen.id !== this.pref.hintDeviceId) savePref({ name: chosen.name, hintDeviceId: chosen.id });
 
       const stereo = await decodeAsync(filepath);
+      // A stop()/mute may have landed during the async decode — honor it before we
+      // open and start the stream, otherwise we'd emit audio the user silenced.
+      if (this.stopped) { this.settle(); return; }
+
       const lead = leadInFrameCount(getLeadInMs());
       this.frames = Array.from({ length: lead }, () => SILENT_FRAME)
         .concat(sliceIntoFrames(stereo, FRAME_SIZE, CHANNELS));
       this.totalFrames = this.frames.length;
       this.audibleFrames = 0;
       this.writeCursor = 0;
-      this.stopped = false;
       this.paused = false;
 
-      this.rt = rt;
       rt.openStream(
         { deviceId: chosen.id, nChannels: CHANNELS, firstChannel: 0 },
         null,
@@ -85,15 +96,24 @@ export class WindowsWasapiPlayer implements AudioPlayerBackend {
     } catch (err) {
       console.error("voice-mcp-backend: WASAPI play failed, falling back to MCI:", err);
       this.cleanupStream();
+      // If a stop landed during setup, don't fall back — playing the full utterance
+      // via MCI would defeat the stop the user asked for.
+      if (this.stopped) { this._state = "stopped"; return; }
       this.fallback = new WindowsMCIPlayer();
       await this.fallback.play(filepath);
     }
   }
 
   private async pump(): Promise<void> {
+    // Watchdog: if the output callback stops advancing audibleFrames (device
+    // unplugged / Bluetooth dropped), bail so play() resolves and the queue
+    // doesn't stall permanently. Reset on any progress or while paused.
+    const STALL_MS = 5000;
+    let lastAudible = this.audibleFrames;
+    let lastProgressAt = Date.now();
     try {
       while (!this.stopped) {
-        if (this.paused) { await sleep(20); continue; }
+        if (this.paused) { await sleep(20); lastProgressAt = Date.now(); continue; }
         while (!this.paused && !this.stopped && this.rt
                && this.writeCursor < this.totalFrames
                && (this.writeCursor - this.audibleFrames) < LOOKAHEAD_FRAMES) {
@@ -101,6 +121,12 @@ export class WindowsWasapiPlayer implements AudioPlayerBackend {
           this.writeCursor++;
         }
         if (this.writeCursor >= this.totalFrames && this.audibleFrames >= this.totalFrames) break;
+        if (this.audibleFrames > lastAudible) {
+          lastAudible = this.audibleFrames;
+          lastProgressAt = Date.now();
+        } else if (Date.now() - lastProgressAt > STALL_MS) {
+          throw new Error("playback stalled (output device lost?)");
+        }
         await sleep(10);
       }
     } catch (err) {
