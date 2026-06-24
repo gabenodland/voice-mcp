@@ -1,6 +1,6 @@
 import net from "node:net";
-import { registry, type TcpCommand, type TcpResponse, type SpeakCommand, type RegisterAgentCommand, type SetVoiceCommand, type TestVoiceCommand, type ReplayItemCommand, type ListDevicesCommand, type SetDeviceCommand, type TestDeviceCommand } from "@voice-mcp/shared";
-import { listDevices, setDevice, getActiveDeviceName } from "./audio-device.js";
+import { registry, type TcpCommand, type TcpResponse, type SpeakCommand, type RegisterAgentCommand, type SetVoiceCommand, type TestVoiceCommand, type ReplayItemCommand, type ListDevicesCommand, type SetDeviceCommand, type TestDeviceCommand, type SetLeadInCommand } from "@voice-mcp/shared";
+import { listDevices, setDevice, getActiveDeviceName, setLeadInMs } from "./audio-device.js";
 import { playProbe } from "./wasapi-player.js";
 import { playbackQueue } from "./playback-queue.js";
 import { getPlayerState } from "./audio-player.js";
@@ -51,6 +51,8 @@ function dispatch(command: TcpCommand): TcpResponse {
       return handleSetDevice(command as SetDeviceCommand);
     case "test_device":
       return handleTestDevice(command as TestDeviceCommand);
+    case "set_leadin":
+      return handleSetLeadIn(command as SetLeadInCommand);
     default:
       return { ok: false, error: `Unknown command: ${(command as any).cmd}` };
   }
@@ -150,7 +152,8 @@ function handleReplayItem(cmd: ReplayItemCommand): TcpResponse {
 
 function handleListDevices(): TcpResponse {
   const r = listDevices();
-  return { ok: true, available: r.available, reason: r.reason, active: r.active, devices: r.devices };
+  return { ok: true, available: r.available, leadInAvailable: r.leadInAvailable,
+    leadInMs: r.leadInMs, reason: r.reason, active: r.active, devices: r.devices };
 }
 
 function handleSetDevice(cmd: SetDeviceCommand): TcpResponse {
@@ -164,6 +167,12 @@ function handleTestDevice(cmd: TestDeviceCommand): TcpResponse {
   // Fire-and-forget: do NOT await drain, so dispatch() stays synchronous.
   void playProbe(cmd.name).catch((err) => console.error("voice-mcp-backend: test_device error:", err));
   return { ok: true, message: `Testing device: ${cmd.name}` };
+}
+
+function handleSetLeadIn(cmd: SetLeadInCommand): TcpResponse {
+  const r = setLeadInMs(cmd.ms);
+  broadcastState();
+  return { ok: true, message: `Lead-in set to ${r.leadInMs} ms` };
 }
 
 const MAX_REQUEST_SIZE = 1024 * 1024; // 1MB safety cap
