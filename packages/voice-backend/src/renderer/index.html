@@ -59,6 +59,11 @@
         <button id="btn-test-device" type="button" class="btn btn-small">Test</button>
       </div>
       <div id="device-reason" class="device-reason" style="display:none"></div>
+      <div class="device-leadin">
+        <label class="device-label" for="leadin-input">Lead-in (ms)</label>
+        <input id="leadin-input" type="number" min="0" max="1000" step="20" class="agent-select" />
+      </div>
+      <div id="leadin-help" class="device-reason"></div>
     </div>
     <div id="agents-list" class="scroll-list"></div>
     <div id="agents-empty" class="empty-state">No agents registered yet</div>

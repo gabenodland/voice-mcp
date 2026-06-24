@@ -516,3 +516,5 @@ body.muted #btn-mute {
 .device-row { display: flex; gap: 8px; align-items: center; }
 .device-row .agent-select { flex: 1; }
 .device-reason { margin-top: 6px; font-size: 11px; opacity: 0.6; }
+.device-leadin { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.device-leadin .agent-select { width: 90px; }

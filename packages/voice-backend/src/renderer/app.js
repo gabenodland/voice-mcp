@@ -71,6 +71,7 @@ function render() {
   renderTimeline();
   renderAgents();
   renderDevicePicker();
+  renderLeadIn();
 }
 
 function renderHeader() {
@@ -439,6 +440,25 @@ function renderDevicePicker() {
   }
 }
 
+function renderLeadIn() {
+  const input = document.getElementById("leadin-input");
+  const help = document.getElementById("leadin-help");
+  const data = state.audioDevices;
+  if (!input || !data) return;
+
+  input.disabled = !data.leadInAvailable;
+  if (document.activeElement !== input) input.value = data.leadInMs; // don't clobber while typing
+
+  if (!data.leadInAvailable) {
+    help.textContent = data.reason || "Lead-in unavailable";
+    return;
+  }
+  const deviceSelected = (data.devices || []).some(d => d.active);
+  help.textContent =
+    "Adds silent padding before playback to prevent Bluetooth devices from clipping the first word."
+    + (deviceSelected ? "" : " Only applies when a specific WASAPI device is selected.");
+}
+
 // ── Actions (delegated — no inline handlers) ──────────────────────────
 
 let lastReplayTime = 0;
@@ -595,6 +615,10 @@ document.getElementById("device-select").addEventListener("change", (e) => {
 document.getElementById("btn-test-device").addEventListener("click", () => {
   const v = document.getElementById("device-select").value;
   if (v && v !== "default") send("test_device", { name: v });
+});
+document.getElementById("leadin-input").addEventListener("change", (e) => {
+  const ms = Number(e.target.value);
+  if (Number.isFinite(ms)) send("set_leadin", { ms });
 });
 
 // ── Init ───────────────────────────────────────────────────────────────
