@@ -74,7 +74,8 @@ export class WindowsWasapiPlayer implements AudioPlayerBackend {
       this.totalFrames = this.frames.length;
       this.audibleFrames = 0;
       this.writeCursor = 0;
-      this.paused = false;
+      // Do NOT reset this.paused — a pause() that landed during decode must survive
+      // (symmetric with the stopped-check above; otherwise pause is silently dropped).
 
       rt.openStream(
         { deviceId: chosen.id, nChannels: CHANNELS, firstChannel: 0 },
@@ -86,8 +87,13 @@ export class WindowsWasapiPlayer implements AudioPlayerBackend {
         null,
         () => { this.audibleFrames++; },
       );
-      rt.start();
-      this._state = "playing";
+      if (this.paused) {
+        // Pause landed during setup: open the stream but don't start it; resume() starts it.
+        this._state = "paused";
+      } else {
+        rt.start();
+        this._state = "playing";
+      }
 
       await new Promise<void>((resolve) => {
         this.resolvePlay = resolve;

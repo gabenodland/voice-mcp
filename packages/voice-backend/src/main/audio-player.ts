@@ -34,7 +34,10 @@ export async function playAudio(filepath: string): Promise<void> {
   const player = createPlayer();
   currentPlayer = player;
   await player.play(filepath);
-  currentPlayer = null;
+  // Only clear if a newer utterance hasn't already replaced us. A WASAPI->MCI
+  // fallback resolves play() late, after which currentPlayer may point at the
+  // next utterance; nulling it then would break that utterance's controls.
+  if (currentPlayer === player) currentPlayer = null;
 }
 
 export function pauseAudio(): void {
