@@ -30,6 +30,8 @@ invalidateDeviceCache();
   assert.deepEqual(r.devices, [], "no devices may be offered when WASAPI is disabled");
   assert.equal(r.active, "System default", "active must read 'System default'");
   assert.ok(r.reason && /mci/i.test(r.reason), "a reason mentioning mci must be present");
+  assert.equal(r.leadInAvailable, false, "leadInAvailable must be false under kill-switch");
+  assert.equal(typeof r.leadInMs, "number", "leadInMs must always be a number");
 }
 
 // SHAPE-PARITY INVARIANT: available:false ⇒ devices:[] AND active:"System default".
@@ -39,6 +41,7 @@ invalidateDeviceCache();
   if (!r.available) {
     assert.deepEqual(r.devices, [], "available:false must always carry an empty device list");
     assert.equal(r.active, "System default", "available:false must always be System default");
+    assert.equal(r.leadInAvailable, false, "available:false ⇒ leadInAvailable:false");
   }
 }
 

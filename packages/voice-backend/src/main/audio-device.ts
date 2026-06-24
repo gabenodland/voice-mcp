@@ -148,14 +148,17 @@ export function listDevices(): DeviceListResult {
   const now = Date.now();
   if (cachedList && now - cachedAt < LIST_TTL_MS) return cachedList;
 
+  const cfg = loadConfig();
   let result: DeviceListResult;
   if (isWasapiDisabled()) {
-    result = { available: false, reason: "WASAPI disabled by VOICE_AUDIO_BACKEND=mci", active: "System default", devices: [] };
+    result = { available: false, leadInAvailable: false, leadInMs: cfg.leadInMs,
+      reason: "WASAPI disabled by VOICE_AUDIO_BACKEND=mci", active: "System default", devices: [] };
   } else if (!loadAudify()) {
-    result = { available: false, reason: "audify native module unavailable", active: "System default", devices: [] };
+    result = { available: false, leadInAvailable: false, leadInMs: cfg.leadInMs,
+      reason: "audify native module unavailable", active: "System default", devices: [] };
   } else {
-    const pref = loadPref();
-    result = { available: true, active: activeLabel(pref), devices: enumerateDevices(pref) };
+    result = { available: true, leadInAvailable: true, leadInMs: cfg.leadInMs,
+      active: activeLabel(cfg.device), devices: enumerateDevices(cfg.device) };
   }
   cachedList = result;
   cachedAt = now;
