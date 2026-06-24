@@ -70,6 +70,8 @@ function render() {
   renderNowPlaying();
   renderTimeline();
   renderAgents();
+  renderDevicePicker();
+  renderLeadIn();
 }
 
 function renderHeader() {
@@ -406,6 +408,59 @@ function renderAgents() {
   list.innerHTML = html;
 }
 
+function renderDevicePicker() {
+  const select = document.getElementById("device-select");
+  const testBtn = document.getElementById("btn-test-device");
+  const reason = document.getElementById("device-reason");
+  const data = state.audioDevices;
+  if (!select || !data) return;
+
+  if (!data.available) {
+    select.innerHTML = `<option>System default</option>`;
+    select.dataset.rendered = ""; // force a rebuild when devices become available again
+    select.disabled = true;
+    testBtn.disabled = true;
+    reason.textContent = data.reason || "Device selection unavailable";
+    reason.style.display = "";
+    return;
+  }
+
+  select.disabled = false;
+  reason.style.display = "none";
+
+  const activeName = data.active; // "System default" or a device name
+  // Test probes a specific WASAPI device; it's a no-op on System default, so disable it there.
+  testBtn.disabled = activeName === "System default";
+  const options = [`<option value="default"${activeName === "System default" ? " selected" : ""}>System default</option>`]
+    .concat(data.devices.map(d =>
+      `<option value="${escapeHtml(d.name)}"${d.name === activeName ? " selected" : ""}>${escapeHtml(d.name)}${d.isDefault ? " (system default)" : ""}</option>`
+    ));
+  const joined = options.join("");
+  if (select.dataset.rendered !== joined) {  // avoid clobbering an open dropdown every tick
+    select.innerHTML = joined;
+    select.dataset.rendered = joined;
+  }
+}
+
+function renderLeadIn() {
+  const input = document.getElementById("leadin-input");
+  const help = document.getElementById("leadin-help");
+  const data = state.audioDevices;
+  if (!input || !data) return;
+
+  input.disabled = !data.leadInAvailable;
+  if (document.activeElement !== input) input.value = data.leadInMs; // don't clobber while typing
+
+  if (!data.leadInAvailable) {
+    help.textContent = data.reason || "Lead-in unavailable";
+    return;
+  }
+  const deviceSelected = (data.devices || []).some(d => d.active);
+  help.textContent =
+    "Adds silent padding before playback to prevent Bluetooth devices from clipping the first word."
+    + (deviceSelected ? "" : " Only applies when a specific WASAPI device is selected.");
+}
+
 // ── Actions (delegated — no inline handlers) ──────────────────────────
 
 let lastReplayTime = 0;
@@ -554,6 +609,19 @@ document.getElementById("agents-list").addEventListener("click", (e) => {
   const row = btn.closest(".agent-row");
   if (!row) return;
   send("test_voice", { agent_name: row.dataset.agent });
+});
+
+document.getElementById("device-select").addEventListener("change", (e) => {
+  send("set_device", { name: e.target.value });
+});
+document.getElementById("btn-test-device").addEventListener("click", () => {
+  const v = document.getElementById("device-select").value;
+  if (v && v !== "default") send("test_device", { name: v });
+});
+document.getElementById("leadin-input").addEventListener("change", (e) => {
+  if (e.target.value.trim() === "") return; // empty field: ignore (Number("") is 0, not NaN)
+  const ms = Number(e.target.value);
+  if (Number.isFinite(ms)) send("set_leadin", { ms });
 });
 
 // ── Init ───────────────────────────────────────────────────────────────

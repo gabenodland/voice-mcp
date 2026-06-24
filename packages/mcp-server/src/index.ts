@@ -6,7 +6,7 @@ import { registerTools } from "./tools.js";
 
 const server = new McpServer({
   name: "voice-tts-mcp",
-  version: "1.1.1",
+  version: "1.2.0",
 });
 
 registerTools(server);

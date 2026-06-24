@@ -64,6 +64,11 @@ export interface ReplayItemCommand {
   item_id: string;
 }
 
+export interface ListDevicesCommand { cmd: "list_devices"; }
+export interface SetDeviceCommand   { cmd: "set_device"; name: string; }   // name or "default"
+export interface TestDeviceCommand  { cmd: "test_device"; name: string; }
+export interface SetLeadInCommand   { cmd: "set_leadin"; ms: number; }
+
 export type TcpCommand =
   | SpeakCommand
   | StatusCommand
@@ -76,7 +81,11 @@ export type TcpCommand =
   | MuteCommand
   | UnmuteCommand
   | TestVoiceCommand
-  | ReplayItemCommand;
+  | ReplayItemCommand
+  | ListDevicesCommand
+  | SetDeviceCommand
+  | TestDeviceCommand
+  | SetLeadInCommand;
 
 // TCP response types (Voice backend → MCP server)
 export interface OkResponse {
@@ -104,6 +113,16 @@ export interface AgentsResponse {
   agents: AgentInfo[];
 }
 
+export interface DevicesResponse {
+  ok: true;
+  available: boolean;
+  leadInAvailable: boolean;  // WASAPI subsystem can apply a lead-in (= available)
+  leadInMs: number;          // current configured lead-in
+  reason?: string;
+  active: string;
+  devices: DeviceInfo[];
+}
+
 export interface ErrorResponse {
   ok: false;
   error: string;
@@ -114,6 +133,7 @@ export type TcpResponse =
   | SpeakResponse
   | StatusResponse
   | AgentsResponse
+  | DevicesResponse
   | ErrorResponse;
 
 // Data types
@@ -156,4 +176,31 @@ export interface PlaybackItem {
   status: "queued" | "generating" | "ready" | "playing" | "done" | "error";
   timestamp: string;
   agentColor: string;
+}
+
+// ── Audio output device types ──────────────────────────────────────────
+export interface DevicePref {
+  name: string;          // stable selector; "default" or absent = system default → MCI
+  hintDeviceId?: number; // best-effort cache of the RtAudio id; revalidated against name
+}
+
+export interface AudioConfig {
+  device: DevicePref | null;
+  leadInMs: number;
+}
+
+export interface DeviceInfo {
+  id: number;        // current audify/RtAudio device id (opaque, instance-scoped; 0 = invalid)
+  name: string;      // stable selector
+  isDefault: boolean;
+  active: boolean;   // matches the persisted selection
+}
+
+export interface DeviceListResult {
+  available: boolean;     // false when audify can't load or WASAPI is disabled
+  leadInAvailable: boolean;
+  leadInMs: number;
+  reason?: string;        // why unavailable
+  active: string;         // "System default" or the selected device name
+  devices: DeviceInfo[];  // output endpoints (empty when unavailable)
 }

@@ -510,3 +510,11 @@ body.muted #btn-mute {
   background: #4a2020;
   color: var(--red);
 }
+
+.device-section { padding: 12px 16px; border-bottom: 1px solid var(--surface1); }
+.device-label { display: block; font-size: 12px; opacity: 0.7; margin-bottom: 6px; }
+.device-row { display: flex; gap: 8px; align-items: center; }
+.device-row .agent-select { flex: 1; }
+.device-reason { margin-top: 6px; font-size: 11px; opacity: 0.6; }
+.device-leadin { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.device-leadin .agent-select { width: 90px; }

@@ -8,6 +8,8 @@ import { playbackQueue } from "./playback-queue.js";
 import { getPlayerState, playAudio, setCurrentMeta, clearCurrentMeta } from "./audio-player.js";
 import { synthesize } from "./tts-engine.js";
 import { registry, VOICE_POOL, SPEED_PRESETS, TONE_PRESETS } from "@voice-mcp/shared";
+import { listDevices, setDevice, setLeadInMs } from "./audio-device.js";
+import { playProbe } from "./wasapi-player.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const connectedClients = new Set<WebSocket>();
@@ -119,6 +121,7 @@ function getFullState() {
     },
     agents,
     staleCount,
+    audioDevices: listDevices(),
   };
 }
 
@@ -173,6 +176,15 @@ async function handleWsMessage(msg: { action: string; [key: string]: any }) {
       if (msg.item_id) {
         playbackQueue.replayItem(msg.item_id);
       }
+      break;
+    case "set_device":
+      if (typeof msg.name === "string") setDevice(msg.name);
+      break;
+    case "test_device":
+      if (typeof msg.name === "string") void playProbe(msg.name).catch(() => {});
+      break;
+    case "set_leadin":
+      if (typeof msg.ms === "number") setLeadInMs(msg.ms);
       break;
   }
   broadcastState();
