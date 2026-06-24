@@ -157,8 +157,16 @@ export function listDevices(): DeviceListResult {
     result = { available: false, leadInAvailable: false, leadInMs: cfg.leadInMs,
       reason: "audify native module unavailable", active: "System default", devices: [] };
   } else {
-    result = { available: true, leadInAvailable: true, leadInMs: cfg.leadInMs,
-      active: activeLabel(cfg.device), devices: enumerateDevices(cfg.device) };
+    const devices = enumerateDevices(cfg.device);
+    if (devices.length === 0) {
+      // audify loaded but enumeration yielded nothing (RtAudio init/getDevices threw,
+      // already logged) — selection isn't actually usable, so report unavailable.
+      result = { available: false, leadInAvailable: false, leadInMs: cfg.leadInMs,
+        reason: "no output devices found", active: "System default", devices: [] };
+    } else {
+      result = { available: true, leadInAvailable: true, leadInMs: cfg.leadInMs,
+        active: activeLabel(cfg.device), devices };
+    }
   }
   cachedList = result;
   cachedAt = now;

@@ -425,10 +425,11 @@ function renderDevicePicker() {
   }
 
   select.disabled = false;
-  testBtn.disabled = false;
   reason.style.display = "none";
 
   const activeName = data.active; // "System default" or a device name
+  // Test probes a specific WASAPI device; it's a no-op on System default, so disable it there.
+  testBtn.disabled = activeName === "System default";
   const options = [`<option value="default"${activeName === "System default" ? " selected" : ""}>System default</option>`]
     .concat(data.devices.map(d =>
       `<option value="${escapeHtml(d.name)}"${d.name === activeName ? " selected" : ""}>${escapeHtml(d.name)}${d.isDefault ? " (system default)" : ""}</option>`
@@ -617,6 +618,7 @@ document.getElementById("btn-test-device").addEventListener("click", () => {
   if (v && v !== "default") send("test_device", { name: v });
 });
 document.getElementById("leadin-input").addEventListener("change", (e) => {
+  if (e.target.value.trim() === "") return; // empty field: ignore (Number("") is 0, not NaN)
   const ms = Number(e.target.value);
   if (Number.isFinite(ms)) send("set_leadin", { ms });
 });
