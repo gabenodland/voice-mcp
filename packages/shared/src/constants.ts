@@ -14,5 +14,4 @@ export const HISTORY_DIR = path.join(os.tmpdir(), "claude_voice_history");
 export const LOG_FILE = path.join(DATA_DIR, "voice_log.jsonl");
 export const ASSIGNMENTS_FILE = path.join(DATA_DIR, "voice_assignments.json");
 
-export const DEFAULT_AUDIO_DEVICE = "default"; // "default" = system default endpoint → MCI
 export const DEVICE_PREF_FILE = path.join(DATA_DIR, "audio_device.json");

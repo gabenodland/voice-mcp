@@ -3,10 +3,9 @@ import { MPEGDecoder } from "mpg123-decoder";
 import type { AudioPlayerBackend, PlayerState } from "./player-types.js";
 import type { DevicePref } from "@voice-mcp/shared";
 import { WindowsMCIPlayer } from "./mci-player.js";
-import { loadAudify, pickDevice, savePref, isWasapiDisabled } from "./audio-device.js";
+import { loadAudify, pickDevice, savePref, isWasapiDisabled, mapOutputDevices, WASAPI_API } from "./audio-device.js";
 import { monoToInterleavedStereo, interleaveChannels, sliceIntoFrames, generateSine } from "./pcm-utils.js";
 
-const WASAPI_API = 7;        // RtAudioApi.WINDOWS_WASAPI
 const FORMAT_FLOAT32 = 0x10; // RtAudioFormat.RTAUDIO_FLOAT32
 const FRAME_SIZE = 480;      // ~20ms @ 24kHz — spike-confirmed
 const LOOKAHEAD_FRAMES = 4;  // bounded look-ahead — spike-confirmed
@@ -47,10 +46,7 @@ export class WindowsWasapiPlayer implements AudioPlayerBackend {
 
       // Resolve the device on the SAME instance we will openStream on.
       const rt = new mod.RtAudio(mod.RtAudioApi?.WINDOWS_WASAPI ?? WASAPI_API);
-      const devices = rt.getDevices()
-        .filter((d: any) => d.outputChannels > 0)
-        .map((d: any) => ({ id: d.id, name: d.name, isDefault: !!d.isDefaultOutput, active: false }));
-      const chosen = pickDevice(devices, this.pref);
+      const chosen = pickDevice(mapOutputDevices(rt), this.pref);
       if (!chosen) throw new Error(`device not found: ${this.pref.name}`);
       if (chosen.id !== this.pref.hintDeviceId) savePref({ name: chosen.name, hintDeviceId: chosen.id });
 
@@ -113,6 +109,7 @@ export class WindowsWasapiPlayer implements AudioPlayerBackend {
   /** Idempotent: cleans up, resolves the pending play() exactly once. */
   private settle(): void {
     this.cleanupStream();
+    this.frames = []; // free the decoded PCM; a fresh player is created per utterance
     this._state = "stopped";
     const r = this.resolvePlay;
     this.resolvePlay = null;
@@ -165,10 +162,7 @@ export async function playProbe(deviceName: string): Promise<void> {
   const mod = loadAudify();
   if (!mod) return;
   const rt = new mod.RtAudio(mod.RtAudioApi?.WINDOWS_WASAPI ?? WASAPI_API);
-  const devices = rt.getDevices()
-    .filter((d: any) => d.outputChannels > 0)
-    .map((d: any) => ({ id: d.id, name: d.name, isDefault: !!d.isDefaultOutput, active: false }));
-  const chosen = pickDevice(devices, { name: deviceName });
+  const chosen = pickDevice(mapOutputDevices(rt), { name: deviceName });
   if (!chosen) return;
 
   const frames = sliceIntoFrames(monoToInterleavedStereo(generateSine(440, 0.4, SAMPLE_RATE)), FRAME_SIZE, CHANNELS);

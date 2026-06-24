@@ -19,10 +19,29 @@ export function loadAudify(): any {
   return audifyMod;
 }
 
-const WASAPI_API = 7; // RtAudioApi.WINDOWS_WASAPI fallback if the enum isn't a runtime value
+export const WASAPI_API = 7; // RtAudioApi.WINDOWS_WASAPI fallback if the enum isn't a runtime value
 
 export function isWasapiDisabled(): boolean {
   return (process.env.VOICE_AUDIO_BACKEND ?? "").toLowerCase() === "mci";
+}
+
+/** The active-device label derived from a saved preference. Single source of truth. */
+function activeLabel(pref: DevicePref | null): string {
+  return pref?.name && pref.name !== "default" ? pref.name : "System default";
+}
+
+/** Map a live RtAudio instance's output endpoints to DeviceInfo. Shared by
+ *  enumeration and the WASAPI player, which must enumerate on the SAME instance
+ *  it opens a stream on (RtAudio ids are opaque and instance-scoped). */
+export function mapOutputDevices(rt: any, pref: DevicePref | null = null): DeviceInfo[] {
+  return rt.getDevices()
+    .filter((d: any) => d.outputChannels > 0)
+    .map((d: any): DeviceInfo => ({
+      id: d.id,
+      name: d.name,
+      isDefault: !!d.isDefaultOutput,
+      active: !!pref && pref.name === d.name,
+    }));
 }
 
 /** Pure: choose a device from an enumerated list given a saved preference. */
@@ -62,22 +81,14 @@ export function savePref(pref: DevicePref | null): void {
   }
 }
 
-/** Enumerate output devices on a fresh RtAudio instance. Returns [] if unavailable. */
-export function enumerateDevices(): DeviceInfo[] {
+/** Enumerate output devices on a fresh RtAudio instance. Returns [] if unavailable.
+ *  Pass `pref` to avoid a redundant pref-file read when the caller already has it. */
+export function enumerateDevices(pref: DevicePref | null = loadPref()): DeviceInfo[] {
   const mod = loadAudify();
   if (!mod) return [];
   try {
-    const api = mod.RtAudioApi?.WINDOWS_WASAPI ?? WASAPI_API;
-    const rt = new mod.RtAudio(api);
-    const pref = loadPref();
-    return rt.getDevices()
-      .filter((d: any) => d.outputChannels > 0)
-      .map((d: any): DeviceInfo => ({
-        id: d.id,
-        name: d.name,
-        isDefault: !!d.isDefaultOutput,
-        active: !!pref && pref.name === d.name,
-      }));
+    const rt = new mod.RtAudio(mod.RtAudioApi?.WINDOWS_WASAPI ?? WASAPI_API);
+    return mapOutputDevices(rt, pref);
   } catch (err) {
     console.error("voice-mcp-backend: device enumeration failed:", err);
     return [];
@@ -104,10 +115,8 @@ export function listDevices(): DeviceListResult {
   } else if (!loadAudify()) {
     result = { available: false, reason: "audify native module unavailable", active: "System default", devices: [] };
   } else {
-    const devices = enumerateDevices();
     const pref = loadPref();
-    const active = pref?.name && pref.name !== "default" ? pref.name : "System default";
-    result = { available: true, active, devices };
+    result = { available: true, active: activeLabel(pref), devices: enumerateDevices(pref) };
   }
   cachedList = result;
   cachedAt = now;
@@ -130,6 +139,13 @@ export function setDevice(nameOrDefault: string): { ok: boolean; error?: string;
   savePref({ name: match.name, hintDeviceId: match.id });
   invalidateDeviceCache();
   return { ok: true, active: match.name };
+}
+
+/** Active-device label for status, without a native device enumeration.
+ *  Mirrors listDevices().active (System default when WASAPI is disabled/unavailable). */
+export function getActiveDeviceName(): string {
+  if (isWasapiDisabled() || !loadAudify()) return "System default";
+  return activeLabel(loadPref());
 }
 
 /** Sync — used by createPlayer() to decide MCI vs WASAPI. null = use MCI. */

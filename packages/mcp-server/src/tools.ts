@@ -7,7 +7,7 @@ import { LOG_FILE, DATA_DIR, DEFAULT_RATE, WEB_UI_PORT } from "../../shared/src/
 import { exec } from "node:child_process";
 import { appendLog } from "./logger.js";
 import { ensureBackend } from "./launcher.js";
-import type { TcpResponse, AgentsResponse, StatusResponse } from "../../shared/src/types.js";
+import type { TcpResponse, AgentsResponse, StatusResponse, OkResponse, ErrorResponse, DevicesResponse } from "../../shared/src/types.js";
 import fs from "node:fs";
 
 function validateRate(rate: string): string {
@@ -321,30 +321,30 @@ Paste this into your project's AI instructions file (CLAUDE.md, .cursorrules, et
     },
     async ({ select }) => {
       if (select !== undefined) {
-        const r = await sendOrLaunch({ cmd: "set_device", name: select });
+        const r = (await sendOrLaunch({ cmd: "set_device", name: select })) as OkResponse | ErrorResponse | null;
         if (!r) return errorText("Voice backend is not running.");
         if (!r.ok) {
           // Spec: an unknown name returns the error PLUS the current device list.
-          const listed = await sendOrLaunch({ cmd: "list_devices" });
-          const names = listed && (listed as any).available
+          const listed = (await sendOrLaunch({ cmd: "list_devices" })) as DevicesResponse | ErrorResponse | null;
+          const names = listed && listed.ok && listed.available
             ? "\n\nAvailable output devices:\n" +
-              (listed as any).devices.map((d: any) => `  ${d.name}${d.isDefault ? " (system default)" : ""}`).join("\n")
+              listed.devices.map((d) => `  ${d.name}${d.isDefault ? " (system default)" : ""}`).join("\n")
             : "";
-          return errorText(`${(r as any).error}${names}`);
+          return errorText(`${r.error}${names}`);
         }
-        return okText((r as any).message ?? `Output device set to ${select}`);
+        return okText(r.message ?? `Output device set to ${select}`);
       }
-      const r = await sendOrLaunch({ cmd: "list_devices" });
+      const r = (await sendOrLaunch({ cmd: "list_devices" })) as DevicesResponse | ErrorResponse | null;
       if (!r) return errorText("Voice backend is not running.");
-      const res = r as any;
-      if (!res.available) {
-        return okText(`Output device selection unavailable: ${res.reason}\nActive: ${res.active}`);
+      if (!r.ok) return errorText(r.error);
+      if (!r.available) {
+        return okText(`Output device selection unavailable: ${r.reason}\nActive: ${r.active}`);
       }
-      const lines = res.devices.map(
-        (d: any) => `${d.active ? "● " : "  "}${d.name}${d.isDefault ? " (system default)" : ""}`
+      const lines = r.devices.map(
+        (d) => `${d.active ? "● " : "  "}${d.name}${d.isDefault ? " (system default)" : ""}`
       );
       return okText(
-        `Active output: ${res.active}\n\nAvailable output devices:\n${lines.join("\n")}\n\n` +
+        `Active output: ${r.active}\n\nAvailable output devices:\n${lines.join("\n")}\n\n` +
         `Use voice_devices with select:"<name>" to choose, or select:"default" to reset.`
       );
     },
